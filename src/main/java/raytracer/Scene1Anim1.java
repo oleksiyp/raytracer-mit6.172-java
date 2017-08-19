@@ -35,7 +35,10 @@ public class Scene1Anim1 {
         int frame = 0;
         long timer = System.currentTimeMillis();
         for (int i = 0; i < 120; i++) {
-            raytracer.render();
+            raytracer.render(new RenderingOptions(
+                    600,
+                    600,
+                    new Colour(0.4, 0.4, 0.4)));
             int t = i - st;
             double d = y + v * t + g * 0.5 * t * t;
             if (d < -30) {

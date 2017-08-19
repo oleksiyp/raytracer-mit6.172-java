@@ -8,11 +8,11 @@ import java.util.Arrays;
 @Getter
 @ToString
 public class PixBuf {
+    final int width;
+    final int height;
     final byte[] r;
     final byte[] g;
     final byte[] b;
-    private final int width;
-    private final int height;
 
     public PixBuf(int width, int height) {
         this.width = width;

@@ -8,9 +8,7 @@ import lombok.ToString;
 @Getter
 @ToString
 public class RenderingOptions {
-    final boolean softShadows;
-    final boolean directIllumination;
-    final boolean globalIllumination;
-    final boolean caustics;
+    final int width;
+    final int height;
     final Colour defaultColour;
 }

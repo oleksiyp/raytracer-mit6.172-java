@@ -124,11 +124,9 @@ public class Scene1Config {
 
         // Mirror surface sphere
         mirrorSphere = scene.add(new Sphere(mirror));
-//        mirrorSphere.translate(v(-27, -30, -30));
 
         // Solid glass sphere
         glassSphere = scene.add(new Sphere(glass));
-//        glassSphere.translate(v(29, -30, -5));
 
         photonLight = scene.add(new SquarePhotonLight(
                 c(15000.0, 15000.0, 15000.0),
@@ -141,17 +139,7 @@ public class Scene1Config {
                         true,
                         4,
                         false)));
-
-        scene.setWH(600, 600);
-
         scene.setCamera(new Camera(eye, gaze, up, fov));
-
-        scene.setRenderingOptions(new RenderingOptions(
-                true,
-                true,
-                true,
-                true,
-                new Colour(0.4, 0.4, 0.4)));
     }
 
 }

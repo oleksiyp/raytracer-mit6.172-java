@@ -14,8 +14,7 @@ import static raytracer.Primitives.EPSILON;
 import static raytracer.Primitives.p;
 import static raytracer.Primitives.v;
 
-public class SimpleRaytracer implements Scene, Raytracer {
-
+public class SimpleRaytracer implements Scene, Raytracer, Renderer {
     final SceneNode root;
 
     final Matrix4D modelToWorld;
@@ -23,8 +22,6 @@ public class SimpleRaytracer implements Scene, Raytracer {
 
     Camera camera;
     RenderingOptions options;
-    int width;
-    int height;
 
     Matrix4D viewToWorld;
     PixBuf pixBuf;
@@ -44,21 +41,16 @@ public class SimpleRaytracer implements Scene, Raytracer {
         return new SceneNode(root, sceneObject);
     }
 
-    public void setWH(int width, int height) {
-        this.width = width;
-        this.height = height;
-    }
-
     public void setCamera(Camera camera) {
         this.camera = camera;
     }
 
-    public void setRenderingOptions(RenderingOptions options) {
+    public void render(RenderingOptions options) {
         this.options = options;
-    }
 
+        int width = options.getWidth();
+        int height = options.getHeight();
 
-    public void render() {
         pixBuf = new PixBuf(width, height);
         pixBuf.fill(options.getDefaultColour());
 
@@ -172,7 +164,7 @@ public class SimpleRaytracer implements Scene, Raytracer {
             }
 
             Ray3D newRay = new Ray3D(ints.point, T);
-            traverseEntireScene(newRay, false);
+            traverseEntireScene(newRay, true);
 
             if (newRay.intersection.isSet()) {
                 computeShading(newRay, depth - 1);
@@ -241,9 +233,9 @@ public class SimpleRaytracer implements Scene, Raytracer {
     }
 
     public BufferedImage pixBufAsImage() {
-        BufferedImage img = new BufferedImage(this.width, this.height, TYPE_INT_RGB);
-        for (int j = 0; j < this.height; j++) {
-            for (int i = 0; i < this.width; i++) {
+        BufferedImage img = new BufferedImage(pixBuf.width, pixBuf.height, TYPE_INT_RGB);
+        for (int j = 0; j < pixBuf.height; j++) {
+            for (int i = 0; i < pixBuf.width; i++) {
                 img.setRGB(i, j, this.pixBuf.getRGB(i, j));
             }
         }
