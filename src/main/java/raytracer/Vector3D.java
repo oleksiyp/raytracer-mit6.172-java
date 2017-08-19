@@ -17,7 +17,7 @@ public class Vector3D {
     }
 
     public Vector3D normalize() {
-        double l = sqrt(x * x + y * y + z * z);
+        double l = mag();
         return new Vector3D(x / l, y / l, z / l);
     }
 
@@ -49,5 +49,9 @@ public class Vector3D {
 
     public Point3D toPoint() {
         return new Point3D(x, y, z);
+    }
+
+    public double mag() {
+        return sqrt(x * x + y * y + z * z);
     }
 }

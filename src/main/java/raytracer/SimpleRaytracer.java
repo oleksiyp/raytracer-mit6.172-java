@@ -1,18 +1,13 @@
 package raytracer;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import static java.awt.image.BufferedImage.TYPE_INT_RGB;
 import static java.lang.Math.sqrt;
 import static raytracer.Matrix4D.identity;
-import static raytracer.Primitives.EPSILON;
 import static raytracer.Primitives.p;
-import static raytracer.Primitives.v;
 
 public class SimpleRaytracer implements Scene, Raytracer, Renderer {
     final SceneNode root;
@@ -54,7 +49,7 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
         pixBuf = new PixBuf(width, height);
         pixBuf.fill(options.getDefaultColour());
 
-        initLights();
+        initObjects();
         initViewMatrix();
 
         Point3D origin = p(0, 0, 150);
@@ -70,10 +65,11 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
 
                 traverseEntireScene(ray, false);
                 if (ray.getIntersection().isSet()) {
-                    computeShading(ray, 6);
+                    computeShading(ray, 6, false);
                     pixBuf.setPixel(i, j, ray.getColour());
                 }
             }
+            System.out.println(j);
         }
     }
 
@@ -104,22 +100,26 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
         viewToWorld.setElement(2, 3, eye.z);
     }
 
-    private void initLights() {
+    private void initObjects() {
         lights.clear();
-        addLights(root);
+        initObjects(root);
     }
 
-    private void addLights(SceneNode node) {
+    private void initObjects(SceneNode node) {
+        if (node.sceneObject != null) {
+            node.sceneObject.init(this);
+        }
+
         if (node.sceneObject instanceof Light) {
             lights.add((Light) node.sceneObject);
         }
 
         for (SceneNode child : node.getChilds()) {
-            addLights(child);
+            initObjects(child);
         }
     }
 
-    private void computeShading(Ray3D ray, int depth) {
+    public void computeShading(Ray3D ray, int depth, boolean getDirectly) {
         if (depth <= 0) {
             ray.setColour(options.getDefaultColour());
             return;
@@ -131,7 +131,7 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
         ints.normal = ints.normal.normalize();
 
         for (Light light : lights) {
-            light.shade(ray, this);
+            light.shade(ray, this, getDirectly);
         }
 
         if (mat.isDiffuse) {
@@ -167,7 +167,7 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
             traverseEntireScene(newRay, true);
 
             if (newRay.intersection.isSet()) {
-                computeShading(newRay, depth - 1);
+                computeShading(newRay, depth - 1, getDirectly);
             } else {
                 newRay.setColour(options.getDefaultColour());
             }
@@ -186,7 +186,7 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
             traverseEntireScene(newRay, false);
 
             if (newRay.intersection.isSet()) {
-                computeShading(newRay, depth - 1);
+                computeShading(newRay, depth - 1, getDirectly);
             } else {
                 newRay.setColour(options.getDefaultColour());
             }

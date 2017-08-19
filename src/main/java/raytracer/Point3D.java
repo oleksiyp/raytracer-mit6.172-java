@@ -36,4 +36,14 @@ public class Point3D {
     public Vector3D toVector() {
         return new Vector3D(x, y, z);
     }
+
+    public double coord(int axis) {
+        if (axis == 0) {
+            return x;
+        }
+        if (axis == 1) {
+            return y;
+        }
+        return z;
+    }
 }

@@ -130,15 +130,19 @@ public class Scene1Config {
 
         photonLight = scene.add(new SquarePhotonLight(
                 c(15000.0, 15000.0, 15000.0),
-                1000,
-                10000,
                 lightmat,
                 new LightOptions(
+                        1000,
+                        10000,
+                        28,
                         13,
                         true,
                         true,
                         4,
-                        false)));
+                        1,
+                        1,
+                        30,
+                        200)));
         scene.setCamera(new Camera(eye, gaze, up, fov));
     }
 

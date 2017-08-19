@@ -8,9 +8,18 @@ import lombok.ToString;
 @Getter
 @ToString
 public class LightOptions {
-    final int nGlobalIllumination;
+    final int numPhotons;
+    final int numCausticPhotons;
+
+    final int nGlobalIlluminationN;
+    final int nGlobalIlluminationM;
     final boolean caustics;
     final boolean directIllumination;
     final int nSoftShadows;
-    final boolean showPhotonMap;
+
+    final double irradianceCacheTolerance;
+    final double irradianceCacheSpacing;
+
+    final int indirectMaxDistance;
+    final int indirectMaxPhotons;
 }
