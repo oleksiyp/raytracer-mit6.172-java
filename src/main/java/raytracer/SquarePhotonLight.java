@@ -273,7 +273,7 @@ public class SquarePhotonLight extends Square implements Light {
         double cosPhi = cos(phi);
 
         double cosTheta = sqrt(rnd.random1());
-        double theta = acos(cosTheta);
+        double theta = FastMath.acos(cosTheta);
         double sinTheta = sin(theta);
 
         Matrix4D basis = initTransformMatrix(normal);
@@ -343,12 +343,11 @@ public class SquarePhotonLight extends Square implements Light {
 
             for (int j = 0; j < M; j++) {
                 double cosTheta = sqrt(1 - (((double) j + rnd.random1()) / M));
-                double theta = acos(cosTheta);
+                double theta = FastMath.acos(cosTheta);
                 double sinTheta = sin(theta);
 
                 Vector3D v = new Vector3D(cosPhi * sinTheta, sinPhi * sinTheta, cosTheta);
                 v = v.transform(basis);
-                v = v.normalize();
 
                 Ray3D newRay = new Ray3D(ints.point, v);
                 raytracer.traverseEntireScene(newRay, true);

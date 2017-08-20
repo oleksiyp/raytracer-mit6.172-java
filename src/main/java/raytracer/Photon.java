@@ -3,7 +3,6 @@ package raytracer;
 public class Photon {
     Colour power;
     Point3D pos;
-    double theta;
-    double phi;
+    Vector3D dir;
     int plane;
 }

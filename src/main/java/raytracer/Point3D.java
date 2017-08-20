@@ -46,4 +46,11 @@ public class Point3D {
         }
         return z;
     }
+
+    public double dist2To(Point3D pt) {
+        double dx = x - pt.x;
+        double dy = y - pt.y;
+        double dz = z - pt.z;
+        return dx * dx + dy * dy + dz * dz;
+    }
 }

@@ -17,9 +17,11 @@ public class SceneNode {
     final SceneNode parent;
     final List<SceneNode> childs;
     final SceneObject sceneObject;
-    boolean identity;
     final Matrix4D transform;
     final Matrix4D invTransform;
+
+    Matrix4D modelToWorld;
+    Matrix4D worldToModel;
 
     public SceneNode(SceneNode parent, SceneObject sceneObject) {
         this.sceneObject = sceneObject;
@@ -28,7 +30,6 @@ public class SceneNode {
             parent.childs.add(this);
         }
         this.parent = parent;
-        identity = true;
         transform = identity();
         invTransform = identity();
     }
@@ -40,6 +41,5 @@ public class SceneNode {
     public void translate(Vector3D offset) {
         transform.mulRight(translation(offset));
         invTransform.mulLeft(translation(offset.negate()));
-        identity = false;
     }
 }

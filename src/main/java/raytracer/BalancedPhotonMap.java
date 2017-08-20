@@ -9,21 +9,27 @@ public class BalancedPhotonMap {
     int half_stored_photons;
     Photon[] photons;
 
+    NearestPhotons np = new NearestPhotons();
 
     public Colour irradianceEstimate(
             Point3D pos,
             Vector3D normal,
             double max_dist,
             int nphotons) {
-        NearestPhotons np = new NearestPhotons();
-        Colour irrad = new Colour(0, 0, 0);
 
-        np.dist2 = new double[nphotons + 1];
-        np.index = new int[nphotons + 1];
+        double r = 0, g = 0, b = 0;
+
+        if (np.dist2 == null || np.dist2.length < nphotons + 1) {
+            np.dist2 = new double[nphotons + 1];
+        }
+        if (np.index == null || np.index.length < nphotons + 1) {
+            np.index = new int[nphotons + 1];
+        }
         np.pos = pos;
         np.max = nphotons;
         np.found = 0;
         np.dist2[0] = max_dist * max_dist;
+        np.index[0] = 0;
 
         // Locate the nearest photons
         locatePhotons(np, 1, normal);
@@ -36,14 +42,15 @@ public class BalancedPhotonMap {
         // Sum irradiance from all photons
         for (int i = 1; i <= np.found; i++) {
             Photon p = photons[np.index[i]];
-            Vector3D pdir = photonDir(p);
-            if (pdir.dot(normal) < 0.0) {
-                irrad = irrad.add(p.power);
+            if (p.dir.dot(normal) < 0.0) {
+                r += p.power.r;
+                g += p.power.g;
+                b += p.power.b;
             }
         }
 
         // Take into account (estimate of) density
-        return irrad.multiply((1.0f / Math.PI) / (np.dist2[0]));
+        return new Colour(r, g, b).multiply((1.0f / Math.PI) / (np.dist2[0]));
     }
 
     private void locatePhotons(NearestPhotons np,
@@ -77,8 +84,7 @@ public class BalancedPhotonMap {
         }
 
         // Compute squared distance between current photon and np.pos
-        dist2 = (p.pos.subtract(np.pos)).mag();
-        dist2 *= dist2;
+        dist2 = p.pos.dist2To(np.pos);
 
         // Adjust the distance for photons that are not on the same plane as this
         // point.
@@ -97,7 +103,6 @@ public class BalancedPhotonMap {
                 np.dist2[np.found] = dist2;
                 np.index[np.found] = index;
             } else {
-
                 // Array full.  Have to remove the furthest photon.
                 int j;
                 double max_dist = -1;
@@ -116,12 +121,5 @@ public class BalancedPhotonMap {
                 }
             }
         }
-    }
-
-    private Vector3D photonDir(Photon p) {
-        return new Vector3D(
-                sin(p.theta) * cos(p.phi * 2),
-                sin(p.theta) * sin(p.phi * 2),
-                cos(p.theta));
     }
 }

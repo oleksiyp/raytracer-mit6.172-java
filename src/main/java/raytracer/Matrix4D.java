@@ -1,10 +1,21 @@
 package raytracer;
 
+import java.util.Arrays;
+
 public class Matrix4D {
     double[][] values;
 
     public Matrix4D() {
         values = new double[4][4];
+    }
+
+    public Matrix4D(Matrix4D mat) {
+        values = new double[][] {
+                Arrays.copyOf(mat.values[0], 4),
+                Arrays.copyOf(mat.values[1], 4),
+                Arrays.copyOf(mat.values[2], 4),
+                Arrays.copyOf(mat.values[3], 4)
+        };
     }
 
     public static Matrix4D identity() {

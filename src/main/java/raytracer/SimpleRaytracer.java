@@ -56,6 +56,7 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
 
         for (int j = 0; j < height; j++) {
             double y = (49.5 - 99 * j / (double) (height));
+            long t = System.currentTimeMillis();
             for (int i = 0; i < width; i++) {
                 double x = (99 * i / (double) (width) - 49.5);
                 Point3D imagePlane = p(x, y, 49.9);
@@ -69,7 +70,8 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
                     pixBuf.setPixel(i, j, ray.getColour());
                 }
             }
-            System.out.println(j);
+            long tt = System.currentTimeMillis();
+            System.out.println(j + " " + (tt - t) / 1000.0);
         }
     }
 
@@ -114,9 +116,18 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
             lights.add((Light) node.sceneObject);
         }
 
+        modelToWorld.mulRight(node.getTransform());
+        worldToModel.mulLeft(node.getInvTransform());
+
+        node.modelToWorld = new Matrix4D(modelToWorld);
+        node.worldToModel = new Matrix4D(worldToModel);
+
         for (SceneNode child : node.getChilds()) {
             initObjects(child);
         }
+
+        worldToModel.mulLeft(node.getTransform());
+        modelToWorld.mulRight(node.getInvTransform());
     }
 
     public void computeShading(Ray3D ray, int depth, boolean getDirectly) {
@@ -207,28 +218,17 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
     private void traverseScene(SceneNode node, Ray3D ray, boolean casting) {
         SceneObject sceneObj = node.getSceneObject();
         if (sceneObj != null) {
-            if (!node.isIdentity()) {
-                modelToWorld.mulRight(node.getTransform());
-                worldToModel.mulLeft(node.getInvTransform());
-            }
-
             if (casting) {
                 if (!(sceneObj instanceof Light)) {
-                    sceneObj.intersect(ray, worldToModel, modelToWorld);
+                    sceneObj.intersect(ray, node.worldToModel, node.modelToWorld);
                 }
             } else {
-                sceneObj.intersect(ray, worldToModel, modelToWorld);
+                sceneObj.intersect(ray, node.worldToModel, node.modelToWorld);
             }
-        }
-        for (SceneNode child : node.getChilds()) {
-            traverseScene(child, ray, casting);
         }
 
-        if (sceneObj != null) {
-            if (!node.isIdentity()) {
-                worldToModel.mulLeft(node.getTransform());
-                modelToWorld.mulRight(node.getInvTransform());
-            }
+        for (SceneNode child : node.getChilds()) {
+            traverseScene(child, ray, casting);
         }
     }
 

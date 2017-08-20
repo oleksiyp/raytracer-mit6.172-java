@@ -210,12 +210,7 @@ public class PhotonMap {
             }
         }
         photon.power = power;
-        photon.theta = acos(dir.z);
-        photon.phi = atan2(dir.y, dir.x) / 2;
-        if (photon.phi < 0) {
-            photon.phi += Math.PI;
-        }
-
+        photon.dir = dir;
         photons[stored_photons] = photon;
     }
 
