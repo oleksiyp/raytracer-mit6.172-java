@@ -10,13 +10,14 @@ import static java.lang.Math.*;
 public class SquarePhotonLight extends Square implements Light {
     final Colour colour;
     final LightOptions lightOpts;
+
+    BalancedPhotonMap bbmap;
+    BalancedPhotonMap ccmap;
+
+    ThreadLocal<BalancedPhotonMap> bmap;
+    ThreadLocal<BalancedPhotonMap> cmap;
     IrradianceCache icache;
-    IrradianceCache directCache;
-
-    final Random rnd;
-
-    BalancedPhotonMap bmap;
-    BalancedPhotonMap cmap;
+    ThreadLocal<Random> rnd;
 
     public SquarePhotonLight(
             Colour colour,
@@ -25,20 +26,18 @@ public class SquarePhotonLight extends Square implements Light {
         super(material);
         this.colour = colour;
         this.lightOpts = lightOpts;
-        rnd = new Random();
     }
 
     @Override
     public void init(Raytracer raytracer) {
         icache = new IrradianceCache(
-                lightOpts.irradianceCacheTolerance,
-                lightOpts.irradianceCacheSpacing);
+                        lightOpts.irradianceCacheTolerance,
+                        lightOpts.irradianceCacheSpacing);
 
-        directCache = new IrradianceCache(
-                lightOpts.irradianceCacheTolerance,
-                lightOpts.irradianceCacheSpacing);
+        bmap = ThreadLocal.withInitial(() -> bbmap.copy());
+        cmap = ThreadLocal.withInitial(() -> ccmap.copy());
 
-        cmap = bmap = null;
+        rnd = ThreadLocal.withInitial(Random::new);
 
         tracePhotonMap(lightOpts.numPhotons, lightOpts.numCausticPhotons, raytracer);
     }
@@ -54,7 +53,7 @@ public class SquarePhotonLight extends Square implements Light {
             Vector3D normal = ray.intersection.normal;
             normal = normal.normalize();
 
-            Colour irr = bmap.irradianceEstimate(
+            Colour irr = bmap.get().irradianceEstimate(
                     ray.intersection.point,
                     normal,
                     lightOpts.indirectMaxDistance,
@@ -89,7 +88,7 @@ public class SquarePhotonLight extends Square implements Light {
         int i = 0;
         while (i < num) {
             // Calculate the start pos and direction of the photon
-            Point3D p = new Point3D(rnd.random2() * 16, 49.99, rnd.random2() * 16);
+            Point3D p = new Point3D(rnd.get().random2() * 16, 49.99, rnd.get().random2() * 16);
             Vector3D v = new Vector3D(0, -1, 0);
             v = getRandLambertianDir(v);
             Ray3D ray = new Ray3D(p, v);
@@ -114,7 +113,7 @@ public class SquarePhotonLight extends Square implements Light {
                             dir_norm);
                 }
 
-                double ran = rnd.random1();
+                double ran = rnd.get().random1();
 
                 Colour c = ray.colour.multiply(ints.mat.diffuse);
                 double P = c.maxComponent() / ray.colour.maxComponent();
@@ -169,7 +168,7 @@ public class SquarePhotonLight extends Square implements Light {
             i++;
         }
         map.scalePhotonPower(1.0 / i);
-        bmap = map.balance();
+        bbmap = map.balance();
 
         // Caustics
         map = new PhotonMap(causticsNum);
@@ -182,7 +181,7 @@ public class SquarePhotonLight extends Square implements Light {
             Point3D p;
 
             if (lightOpts.nSoftShadows > 1) {
-                p = new Point3D(rnd.random2() * 18, 49.99, rnd.random2() * 18);
+                p = new Point3D(rnd.get().random2() * 18, 49.99, rnd.get().random2() * 18);
             } else {
                 p = new Point3D(0, 49.99, 0);
             }
@@ -205,7 +204,7 @@ public class SquarePhotonLight extends Square implements Light {
                     Vector3D dirNorm = ray.dir;
                     dirNorm = dirNorm.normalize();
 
-                    if (ray.intersection.mat.isDiffuse){
+                    if (ray.intersection.mat.isDiffuse) {
                         map.storePhoton(
                                 ray.colour,
                                 ray.intersection.point,
@@ -215,7 +214,7 @@ public class SquarePhotonLight extends Square implements Light {
                         break;
                     }
 
-                    double ran = rnd.random1();
+                    double ran = rnd.get().random1();
                     Colour c = ray.colour.multiply(ray.intersection.mat.specular);
                     double P = c.maxComponent() / ray.colour.maxComponent();
                     Intersection ints = ray.intersection;
@@ -267,17 +266,17 @@ public class SquarePhotonLight extends Square implements Light {
             }
         }
         map.scalePhotonPower(1.0 / emitted);
-        cmap = map.balance();
+        ccmap = map.balance();
     }
 
     private Vector3D getRandLambertianDir(Vector3D normal) {
         Vector3D v;
 
-        double phi = 2 * PI * rnd.random1();
+        double phi = 2 * PI * rnd.get().random1();
         double sinPhi = sin(phi);
         double cosPhi = cos(phi);
 
-        double cosTheta = sqrt(rnd.random1());
+        double cosTheta = sqrt(rnd.get().random1());
         double theta = FastMath.acos(cosTheta);
         double sinTheta = sin(theta);
 
@@ -299,19 +298,19 @@ public class SquarePhotonLight extends Square implements Light {
         normal.normalize();
 
         if (lightOpts.nSoftShadows > 1) {
-            caus_col = cmap.irradianceEstimate(
+            caus_col = cmap.get().irradianceEstimate(
                     ray.intersection.point,
                     normal,
                     4,
                     1000);
         } else {
-            caus_col = cmap.irradianceEstimate(
+            caus_col = cmap.get().irradianceEstimate(
                     ray.intersection.point,
                     normal,
                     1.1,
                     1000);
         }
-        if (caus_col == null)  {
+        if (caus_col == null) {
             caus_col = new Colour(0, 0, 0);
         }
         double cosTheta12 = sqrt(-(ray.dir.dot(ray.intersection.normal)));
@@ -342,12 +341,12 @@ public class SquarePhotonLight extends Square implements Light {
 
         // Stratification
         for (int i = 0; i < N; i++) {
-            double phi = 2 * PI * ((double) i + rnd.random1()) / N;
+            double phi = 2 * PI * ((double) i + rnd.get().random1()) / N;
             double sinPhi = sin(phi);
             double cosPhi = cos(phi);
 
             for (int j = 0; j < M; j++) {
-                double cosTheta = sqrt(1 - (((double) j + rnd.random1()) / M));
+                double cosTheta = sqrt(1 - (((double) j + rnd.get().random1()) / M));
                 double theta = FastMath.acos(cosTheta);
                 double sinTheta = sin(theta);
 
@@ -424,7 +423,7 @@ public class SquarePhotonLight extends Square implements Light {
         for (int i = 1; i <= N; i++) {
             double x;
             if (N > 1) {
-                double rand = rnd.random1();
+                double rand = rnd.get().random1();
                 double dxRand = rand - floor(rand);
                 x = ((i + dxRand) * dx) * 30 - 15;
             } else {
@@ -434,7 +433,7 @@ public class SquarePhotonLight extends Square implements Light {
             for (int j = 1; j <= N; j++) {
                 double z;
                 if (N > 1) {
-                    double rand = rnd.random1();
+                    double rand = rnd.get().random1();
                     double dzRand = rand - floor(rand);
                     z = (((double) j + dzRand) * dz) * 30 - 15;
                 } else {

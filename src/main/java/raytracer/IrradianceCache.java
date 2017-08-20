@@ -6,11 +6,18 @@ import lombok.ToString;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static java.lang.Math.*;
 
 public class IrradianceCache {
     private static final double ICACHE_MAX_SPACING_RATIO = 100.0;
+
+    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+    private final Lock readLock = rwLock.readLock();
+    private final Lock writeLock = rwLock.writeLock();
 
     final List<Sample> samples;
     final double tolerance;
@@ -30,7 +37,12 @@ public class IrradianceCache {
     public void insert(Point3D pos, Vector3D norm, double r0, Colour irr) {
         r0 = clamp(r0 * tolerance, minSpacing, maxSpacing);
 
-        samples.add(new Sample(pos, norm, r0, r0 * tolerance, irr));
+        writeLock.lock();
+        try {
+            samples.add(new Sample(pos, norm, r0, r0 * tolerance, irr));
+        } finally {
+            writeLock.unlock();
+        }
     }
 
     private double clamp(double val, double low, double high) {
@@ -42,18 +54,23 @@ public class IrradianceCache {
         boolean hasIrr = false;
         double r = 0, g = 0, b = 0;
 
-        for (int i = 0; i < samples.size(); i++) {
-            Sample s = samples.get(i);
-            double wi = s.weight2(pos, norm);
-            wi = min(1e20, wi);
-            if (wi > invTolerance) {
-                wi = sqrt(wi);
-                r += s.irr.r * wi;
-                g += s.irr.g * wi;
-                b += s.irr.b * wi;
-                hasIrr = true;
-                weight += wi;
+        readLock.lock();
+        try {
+            for (int i = 0; i < samples.size(); i++) {
+                Sample s = samples.get(i);
+                double wi = s.weight2(pos, norm);
+                wi = min(1e20, wi);
+                if (wi > invTolerance) {
+                    wi = sqrt(wi);
+                    r += s.irr.r * wi;
+                    g += s.irr.g * wi;
+                    b += s.irr.b * wi;
+                    hasIrr = true;
+                    weight += wi;
+                }
             }
+        } finally {
+            readLock.unlock();
         }
 
         if (!hasIrr) {

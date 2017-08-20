@@ -1,5 +1,7 @@
 package raytracer;
 
+import java.util.Arrays;
+
 import static java.lang.Math.abs;
 
 public class BalancedPhotonMap {
@@ -10,6 +12,15 @@ public class BalancedPhotonMap {
     NearestPhotons np = new NearestPhotons();
     LinearPhotons lp = new LinearPhotons();
 
+    public BalancedPhotonMap(Photon[] photons, int nStoredPhotons) {
+        this.nStoredPhotons = nStoredPhotons;
+        half_stored_photons = nStoredPhotons / 2 - 1;
+        this.photons = photons;
+
+        lp.init(photons, this.nStoredPhotons);
+
+    }
+
     public Colour irradianceEstimate(
             Point3D pos,
             Vector3D normal,
@@ -19,7 +30,6 @@ public class BalancedPhotonMap {
         double r = 0, g = 0, b = 0;
 
         np.init(pos, normal, max_dist, nphotons);
-        lp.init(photons, nStoredPhotons);
 
         // Locate the nearest photons
         locatePhotons(1);
@@ -152,5 +162,11 @@ public class BalancedPhotonMap {
         discFix = abs(discFix);
         dist2 *= discFix  * 0.010 + 1;
         return dist2;
+    }
+
+    public BalancedPhotonMap copy() {
+        return new BalancedPhotonMap(
+                Arrays.copyOf(photons, photons.length),
+                nStoredPhotons);
     }
 }

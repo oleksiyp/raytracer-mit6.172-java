@@ -3,9 +3,13 @@ package raytracer;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.*;
 
 import static java.awt.image.BufferedImage.TYPE_INT_RGB;
 import static java.lang.Math.sqrt;
+import static java.lang.Runtime.getRuntime;
+import static java.lang.System.currentTimeMillis;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 import static raytracer.Matrix4D.identity;
 import static raytracer.Primitives.p;
 
@@ -54,27 +58,42 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
 
         Point3D origin = p(0, 0, 150);
 
+
+        ExecutorService executor = newFixedThreadPool(getRuntime().availableProcessors());
+
+        CountDownLatch latch = new CountDownLatch(height);
         for (int j = 0; j < height; j++) {
             double y = (49.5 - 99 * j / (double) (height));
-            long t = System.currentTimeMillis();
-            StopWatch.reset();
-            for (int i = 0; i < width; i++) {
-                double x = (99 * i / (double) (width) - 49.5);
-                Point3D imagePlane = p(x, y, 49.9);
-                Vector3D dir = imagePlane.subtract(origin).normalize();
+            int jj = j;
+            executor.execute(() -> {
+                long t = currentTimeMillis();
+                StopWatch.reset();
+                for (int i = 0; i < width; i++) {
+                    double x = (99 * i / (double) (width) - 49.5);
+                    Point3D imagePlane = p(x, y, 49.9);
+                    Vector3D dir = imagePlane.subtract(origin).normalize();
 
-                Ray3D ray = new Ray3D(imagePlane, dir);
+                    Ray3D ray = new Ray3D(imagePlane, dir);
 
-                traverseEntireScene(ray, false);
-                if (ray.getIntersection().isSet()) {
-                    computeShading(ray, 6, false);
-                    pixBuf.setPixel(i, j, ray.getColour());
+                    traverseEntireScene(ray, false);
+                    if (ray.getIntersection().isSet()) {
+                        computeShading(ray, 6, false);
+                        pixBuf.setPixel(i, jj, ray.getColour());
+                    }
                 }
-            }
-            long tt = System.currentTimeMillis();
-            double t1 = (tt - t) / 1e3;
-            double tf = StopWatch.get() / 1e9;
-            System.out.println(j + " " + t1 + " " + tf / t1 * 100.0);
+                long tt = currentTimeMillis();
+                double t1 = (tt - t) / 1e3;
+                double tf = StopWatch.get() / 1e9;
+                System.out.println(jj + " " + t1 + " " + tf / t1 * 100.0);
+
+                latch.countDown();
+            });
+        }
+        try {
+            latch.await();
+            executor.shutdown();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 

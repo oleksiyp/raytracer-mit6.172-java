@@ -70,12 +70,7 @@ public class PhotonMap {
             }
         }
 
-        BalancedPhotonMap bmap = new BalancedPhotonMap();
-        bmap.nStoredPhotons = stored_photons;
-        bmap.half_stored_photons = stored_photons / 2 - 1;
-        bmap.photons = photons;
-
-        return bmap;
+        return new BalancedPhotonMap(photons, stored_photons);
     }
 
     private void balanceSegment(int[] pbal,
