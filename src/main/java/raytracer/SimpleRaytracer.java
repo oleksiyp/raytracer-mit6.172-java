@@ -68,7 +68,9 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
                     computeShading(ray, 6, false);
                     pixBuf.setPixel(i, j, ray.getColour());
                 }
+                System.out.print(i + " ");
             }
+            System.out.println();
             System.out.println(j);
         }
     }

@@ -3,10 +3,9 @@ package raytracer;
 import lombok.Getter;
 
 import static raytracer.Primitives.c;
-import static raytracer.Primitives.v;
 
 @Getter
-public class Scene1Config extends CommonConfig {
+public class Scene2Config extends CommonConfig {
 
     SceneNode sceneCube;
     SceneNode mirrorSphere;
@@ -14,25 +13,31 @@ public class Scene1Config extends CommonConfig {
     SceneNode photonLight;
 
     public void config(Scene scene) {
-        sceneCube = scene.add(new Cube(Direction.IN, grey, grey, grey, grey, blue, red));
+        sceneCube = scene.add(new Cube(Direction.IN, grey, grey, grey, grey, green, blue));
 
         // Mirror surface sphere
         mirrorSphere = scene.add(new Sphere(mirror));
+        mirrorSphere.translate(new Vector3D(-27, -30, -30));
 
-        // Solid glass sphere
-        glassSphere = scene.add(new Sphere(glass));
+        // Water surface
+        scene.add(new DisplacedSurface(water,
+                22.0,
+                499,
+                499,
+                new PerlinNoise(1, 0.14, 1.0, 3)));
+
 
         photonLight = scene.add(new SquarePhotonLight(
                 c(15000.0, 15000.0, 15000.0),
                 lightmat,
                 new LightOptions(
                         1000,
-                        10000,
+                        2000000,
                         28,
                         13,
                         true,
                         true,
-                        4,
+                        1,
                         1,
                         1,
                         30,

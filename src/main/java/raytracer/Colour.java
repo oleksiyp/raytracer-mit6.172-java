@@ -18,7 +18,7 @@ public class Colour {
     }
 
     public double maxComponent() {
-        return max(r, max(r, b));
+        return max(r, max(g, b));
     }
 
     public Colour multiply(Colour c) {
