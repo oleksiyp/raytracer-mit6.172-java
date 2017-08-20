@@ -13,7 +13,7 @@ public class Scene2Config extends CommonConfig {
     SceneNode photonLight;
 
     public void config(Scene scene) {
-        sceneCube = scene.add(new Cube(Direction.IN, grey, grey, grey, grey, green, blue);
+        sceneCube = scene.add(new Cube(Direction.IN, grey, grey, grey, grey, green, blue));
 
         // Mirror surface sphere
         mirrorSphere = scene.add(new Sphere(mirror));

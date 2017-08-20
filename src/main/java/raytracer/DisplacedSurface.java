@@ -4,33 +4,31 @@ public class DisplacedSurface extends SceneObject {
     final int xcoords;
     final int zcoords;
     final double middle;
-    final PerlinNoise peril_noise;
+    final PerlinNoise perlinNoise;
     final Material material;
-    final double max_disp;
+    final double maxDisp;
     final Point3D[][] points;
-    final double top_bound;
-    final double bottom_bound;
+    final double topBound;
+    final double bottomBound;
 
     public DisplacedSurface(Material material, double middle, int n, int m, PerlinNoise noise) {
-        peril_noise = noise;
+        perlinNoise = noise;
         this.material = material;
 
         xcoords = n;
         zcoords = m;
         this.middle = middle;
-        max_disp = 1.0;
+        maxDisp = 1.0;
 
-        points = new Point3D[n][m];
+        points = new Point3D[n + 1][m + 1];
 
-        top_bound = middle + max_disp;
-        bottom_bound = middle - max_disp;
-        makeSurface();
+        topBound = middle + maxDisp;
+        bottomBound = middle - maxDisp;
+
+        makeSurface(0);
     }
 
-    ;
-
-
-    boolean checkIntersectionGrid(
+    private boolean checkIntersectionGrid(
             int xcoord, int zcoord,
             Point3D origin, Vector3D dir,
             Ray3D ray,
@@ -116,20 +114,19 @@ public class DisplacedSurface extends SceneObject {
         return intersected;
     }
 
-    void makeSurface() {
+    public void makeSurface(double time) {
    /* Extents are -50 to +50 in x-z plane, offset by height */
         int z = 0;
         int x = 0;
-        double time = 0;
 
         for (x = 0; x < xcoords + 1; x++) {
             for (z = 0; z < zcoords + 1; z++) {
 
                 double xc = (x * 100.0) / xcoords - 50.0;
                 double zc = (z * 100.0) / zcoords - 50.0;
-                double y = peril_noise.get(xc / 1.2, zc, time) + middle;
+                double y = perlinNoise.get(xc / 1.2, zc, time) + middle;
 
-                points[x][z] = Point3D(xc, y, zc);
+                points[x][z] = new Point3D(xc, y, zc);
             }
         }
 
