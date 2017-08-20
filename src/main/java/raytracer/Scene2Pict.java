@@ -26,7 +26,7 @@ public class Scene2Pict {
                 new Colour(0.4, 0.4, 0.4)));
 
         BufferedImage img = raytracer.pixBufAsImage();
-        ImageIO.write(img, "PNG", new File("out.png"));
+        ImageIO.write(img, "PNG", new File("scene2.png"));
         long ttimer = System.currentTimeMillis();
         System.out.printf("%6.2f%n", (ttimer - timer) / 1000.);
     }
