@@ -11,6 +11,7 @@ public class SquarePhotonLight extends Square implements Light {
     final Colour colour;
     final LightOptions lightOpts;
     IrradianceCache icache;
+    IrradianceCache directCache;
 
     final Random rnd;
 
@@ -30,6 +31,10 @@ public class SquarePhotonLight extends Square implements Light {
     @Override
     public void init(Raytracer raytracer) {
         icache = new IrradianceCache(
+                lightOpts.irradianceCacheTolerance,
+                lightOpts.irradianceCacheSpacing);
+
+        directCache = new IrradianceCache(
                 lightOpts.irradianceCacheTolerance,
                 lightOpts.irradianceCacheSpacing);
 

@@ -25,16 +25,12 @@ public class Point3D {
                 x * mat.values[2][0] + y * mat.values[2][1] + z * mat.values[2][2] + mat.values[2][3]);
     }
 
-    public double dot(Vector3D dir) {
-        return toVector().dot(dir);
+    public double dot(Vector3D vec) {
+        return x*vec.x + y*vec.y + z*vec.z;
     }
 
     public double dot(Point3D pt) {
-        return toVector().dot(pt.toVector());
-    }
-
-    public Vector3D toVector() {
-        return new Vector3D(x, y, z);
+        return x*pt.x + y*pt.y + z*pt.z;
     }
 
     public double coord(int axis) {
@@ -45,12 +41,5 @@ public class Point3D {
             return y;
         }
         return z;
-    }
-
-    public double dist2To(Point3D pt) {
-        double dx = x - pt.x;
-        double dy = y - pt.y;
-        double dz = z - pt.z;
-        return dx * dx + dy * dy + dz * dz;
     }
 }

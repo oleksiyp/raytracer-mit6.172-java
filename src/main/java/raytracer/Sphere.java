@@ -37,7 +37,7 @@ public class Sphere extends SceneObject {
 
             if (ray.lessDistant(lambda)) {
                 p = origin.add(dir.multiply(lambda));
-                n = p.toVector().transform(modelToWorld);
+                n = new Vector3D(p.x, p.y, p.z).transform(modelToWorld);
                 p = p.transform(modelToWorld);
                 ray.setIntersection(p, n, lambda, mat);
 
@@ -48,7 +48,7 @@ public class Sphere extends SceneObject {
 
             if (ray.lessDistant(lambda)) {
                 p = origin.add(dir.multiply(lambda));
-                n = p.toVector().transform(modelToWorld);
+                n = new Vector3D(p.x, p.y, p.z).transform(modelToWorld);
                 p = p.transform(modelToWorld);
                 ray.setIntersection(p, n, lambda, mat);
 
@@ -59,7 +59,7 @@ public class Sphere extends SceneObject {
 
             if (ray.lessDistant(lambda)) {
                 p = origin.add(dir.multiply(lambda));
-                n = p.toVector().transform(modelToWorld);
+                n = new Vector3D(p.x, p.y, p.z).transform(modelToWorld);
                 p = p.transform(modelToWorld);
                 ray.setIntersection(p, n, lambda, mat);
 

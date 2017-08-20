@@ -2,8 +2,6 @@ package raytracer;
 
 import java.util.Arrays;
 
-import static java.lang.Math.*;
-
 public class PhotonMap {
     int stored_photons;
     int prev_scale;
@@ -73,7 +71,7 @@ public class PhotonMap {
         }
 
         BalancedPhotonMap bmap = new BalancedPhotonMap();
-        bmap.stored_photons = stored_photons;
+        bmap.nStoredPhotons = stored_photons;
         bmap.half_stored_photons = stored_photons / 2 - 1;
         bmap.photons = photons;
 

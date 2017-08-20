@@ -1,15 +1,14 @@
 package raytracer;
 
 import static java.lang.Math.abs;
-import static java.lang.Math.cos;
-import static java.lang.Math.sin;
 
 public class BalancedPhotonMap {
-    int stored_photons;
+    int nStoredPhotons;
     int half_stored_photons;
     Photon[] photons;
 
     NearestPhotons np = new NearestPhotons();
+    LinearPhotons lp = new LinearPhotons();
 
     public Colour irradianceEstimate(
             Point3D pos,
@@ -19,20 +18,11 @@ public class BalancedPhotonMap {
 
         double r = 0, g = 0, b = 0;
 
-        if (np.dist2 == null || np.dist2.length < nphotons + 1) {
-            np.dist2 = new double[nphotons + 1];
-        }
-        if (np.index == null || np.index.length < nphotons + 1) {
-            np.index = new int[nphotons + 1];
-        }
-        np.pos = pos;
-        np.max = nphotons;
-        np.found = 0;
-        np.dist2[0] = max_dist * max_dist;
-        np.index[0] = 0;
+        np.init(pos, normal, max_dist, nphotons);
+        lp.init(photons, nStoredPhotons);
 
         // Locate the nearest photons
-        locatePhotons(np, 1, normal);
+        locatePhotons(1);
 
         // If less than 2 photons return
         if (np.found < 2) {
@@ -41,11 +31,11 @@ public class BalancedPhotonMap {
 
         // Sum irradiance from all photons
         for (int i = 1; i <= np.found; i++) {
-            Photon p = photons[np.index[i]];
-            if (p.dir.dot(normal) < 0.0) {
-                r += p.power.r;
-                g += p.power.g;
-                b += p.power.b;
+            int idx = np.index[i];
+            if (lp.dirDot(idx, normal) < 0.0) {
+                r += lp.powerR(idx);
+                g += lp.powerG(idx);
+                b += lp.powerB(idx);
             }
         }
 
@@ -53,73 +43,114 @@ public class BalancedPhotonMap {
         return new Colour(r, g, b).multiply((1.0f / Math.PI) / (np.dist2[0]));
     }
 
-    private void locatePhotons(NearestPhotons np,
-                               int index,
-                               Vector3D normal) {
+    public Colour irradianceEstimate2(
+            Point3D pos,
+            Vector3D normal,
+            double maxDist) {
 
-        Photon p = photons[index];
+        double r = 0, g = 0, b = 0;
+        int found = 0;
+        double maxDist2 = maxDist * maxDist;
+
+
+        // Sum irradiance from all photons
+        for (int i = 1; i <= nStoredPhotons; i++) {
+            double dist = lp.dist(i, normal, pos);
+            if (dist * dist < maxDist2) {
+                if (lp.dirDot(i, normal) < 0.0) {
+                    r += lp.powerR(i);
+                    g += lp.powerG(i);
+                    b += lp.powerB(i);
+                }
+                found++;
+            }
+        }
+
+        // If less than 2 photons return
+        if (found < 2) {
+            return null;
+        }
+
+        // Take into account (estimate of) density
+        return new Colour(r, g, b).multiply((1.0f / Math.PI) / maxDist2);
+    }
+
+
+    private void locatePhotons(int index) {
         double dist1;
-        double distx1;
-        double disty1;
-        double distz1;
         double dist2;
-        double discFix;
+
+        Vector3D normal = np.normal;
 
         if (index < half_stored_photons) {
-            dist1 = np.pos.coord(p.plane) - p.pos.coord(p.plane);
+            int plane = lp.plane(index);
+            dist1 = np.pos.coord(plane) - lp.coord(index, plane);
 
             // If dist1 is positive search right plane
             if (dist1 > 0.0) {
-                locatePhotons(np, 2 * index + 1, normal);
+                locatePhotons(2 * index + 1);
                 if (dist1 * dist1 < np.dist2[0]) {
-                    locatePhotons(np, 2 * index, normal);
+                    locatePhotons(2 * index);
                 }
                 // Else, dist1 is negative search left first
             } else {
-                locatePhotons(np, 2 * index, normal);
+                locatePhotons(2 * index);
                 if (dist1 * dist1 < np.dist2[0]) {
-                    locatePhotons(np, 2 * index + 1, normal);
+                    locatePhotons(2 * index + 1);
                 }
             }
         }
 
-        // Compute squared distance between current photon and np.pos
-        dist2 = p.pos.dist2To(np.pos);
-
         // Adjust the distance for photons that are not on the same plane as this
         // point.
-        distx1 = p.pos.x - np.pos.x;
-        disty1 = p.pos.y - np.pos.y;
-        distz1 = p.pos.z - np.pos.z;
-        discFix = normal.x * distx1 + normal.y * disty1 + normal.z * distz1;
-        discFix = abs(discFix);
-        dist2 += discFix * dist2 * 0.010;
+        dist2 = lp.dist(index, normal, np.pos);
 
         if (dist2 < np.dist2[0]) {
             // We found a photon :) Insert it in the candidate list
             if (np.found < np.max) {
                 // Array not full
-                np.found++;
-                np.dist2[np.found] = dist2;
-                np.index[np.found] = index;
+                add(index, dist2);
             } else {
                 // Array full.  Have to remove the furthest photon.
-                int j;
-                double max_dist = -1;
-                int max_index = -1;
-                j = 1;
-                while (j <= np.found) {
-                    if (np.dist2[j] > max_dist) {
-                        max_dist = np.dist2[j];
-                        max_index = j;
-                    }
-                    j++;
-                }
-                if (max_index != -1) {
-                    np.dist2[max_index] = dist2;
-                    np.index[max_index] = index;
-                }
+                addFull(index, dist2);
             }
         }
+    }
+
+    private void add(int index, double dist2) {
+        np.found++;
+        np.dist2[np.found] = dist2;
+        np.index[np.found] = index;
+    }
+
+    private void addFull(int index, double dist2) {
+        int j;
+        double maxDist = -1;
+        int maxIndex = -1;
+        j = 1;
+        while (j <= np.found) {
+            if (np.dist2[j] > maxDist) {
+                maxDist = np.dist2[j];
+                maxIndex = j;
+            }
+            j++;
+        }
+        if (maxIndex != -1) {
+            np.dist2[maxIndex] = dist2;
+            np.index[maxIndex] = index;
+        }
+    }
+
+    private double dist(Photon p, Vector3D normal, Point3D pos) {
+        double distx1 = p.pos.x - pos.x;
+        double disty1 = p.pos.y - pos.y;
+        double distz1 = p.pos.z - pos.z;
+
+        double dist2 = distx1 * distx1 + disty1 * disty1 + distz1 * distz1;
+        double discFix = normal.x * distx1 + normal.y * disty1 + normal.z * distz1;
+
+        discFix = abs(discFix);
+        dist2 *= discFix  * 0.010 + 1;
+        return dist2;
     }
 }

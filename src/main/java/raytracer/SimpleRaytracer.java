@@ -57,6 +57,7 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
         for (int j = 0; j < height; j++) {
             double y = (49.5 - 99 * j / (double) (height));
             long t = System.currentTimeMillis();
+            StopWatch.reset();
             for (int i = 0; i < width; i++) {
                 double x = (99 * i / (double) (width) - 49.5);
                 Point3D imagePlane = p(x, y, 49.9);
@@ -71,7 +72,9 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
                 }
             }
             long tt = System.currentTimeMillis();
-            System.out.println(j + " " + (tt - t) / 1000.0);
+            double t1 = (tt - t) / 1e3;
+            double tf = StopWatch.get() / 1e9;
+            System.out.println(j + " " + t1 + " " + tf / t1 * 100.0);
         }
     }
 
