@@ -1,12 +1,14 @@
 package raytracer;
 
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
 @AllArgsConstructor
 @Getter
 @ToString
+@EqualsAndHashCode
 public class Intersection {
     boolean set;
     Point3D point;
@@ -32,5 +34,10 @@ public class Intersection {
         this.normal = normal;
         this.tValue = t;
         this.mat = mat;
+    }
+
+    public void transformBack(Matrix4D modelToWorld) {
+        point = point.transform(modelToWorld);
+        normal = normal.transform(modelToWorld);
     }
 }

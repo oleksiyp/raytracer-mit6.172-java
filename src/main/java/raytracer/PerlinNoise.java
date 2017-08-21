@@ -3,6 +3,9 @@ package raytracer;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.util.*;
+import java.util.Random;
+
 import static java.lang.Math.sqrt;
 
 @Getter
@@ -17,7 +20,7 @@ public class PerlinNoise {
     private static final int NP = 12;
     private static final int NM = 0xfff;
 
-    boolean start = false;
+    boolean start;
 
     final int octaves;
     final double freq;
@@ -28,6 +31,7 @@ public class PerlinNoise {
     double [][]g3 = new double[SAMPLE_SIZE + SAMPLE_SIZE + 2][3];
     double [][]g2 = new double[SAMPLE_SIZE + SAMPLE_SIZE + 2][2];
     double []g1 = new double[SAMPLE_SIZE + SAMPLE_SIZE + 2];
+    Random rnd;
 
 
     public PerlinNoise(int octaves, double freq, double amp, int seed) {
@@ -35,6 +39,7 @@ public class PerlinNoise {
         this.freq = freq;
         this.amp = amp;
         this.seed = seed;
+        start = true;
     }
 
     public double get(double x, double y, double time) {
@@ -70,7 +75,7 @@ public class PerlinNoise {
         double []q;
 
         if (start) {
-//            srand(mSeed);
+            rnd = new Random(seed);
             start = false;
             init();
         }
@@ -180,7 +185,7 @@ public class PerlinNoise {
     }
 
     private int rand() {
-        return 0;
+        return rnd.nextInt(32768);
     }
 
     void normalize2(double []v)

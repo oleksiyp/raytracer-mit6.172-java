@@ -1,12 +1,14 @@
 package raytracer;
 
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
 @AllArgsConstructor
 @Getter
 @ToString
+@EqualsAndHashCode
 public class Material {
     final Colour diffuse;
     final Colour specular;

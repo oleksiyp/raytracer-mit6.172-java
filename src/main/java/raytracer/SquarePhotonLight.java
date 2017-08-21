@@ -399,15 +399,15 @@ public class SquarePhotonLight extends Square implements Light {
         u = v.cross(w);
 
         Matrix4D mat = new Matrix4D();
-        mat.values[0][0] = u.x;
-        mat.values[1][0] = u.y;
-        mat.values[2][0] = u.z;
-        mat.values[0][1] = v.x;
-        mat.values[1][1] = v.y;
-        mat.values[2][1] = v.z;
-        mat.values[0][2] = w.x;
-        mat.values[1][2] = w.y;
-        mat.values[2][2] = w.z;
+        mat.setElement(0, 0, u.x);
+        mat.setElement(1, 0, u.y);
+        mat.setElement(2, 0, u.z);
+        mat.setElement(0, 1, v.x);
+        mat.setElement(1, 1, v.y);
+        mat.setElement(2, 1, v.z);
+        mat.setElement(0, 2, w.x);
+        mat.setElement(1, 2, w.y);
+        mat.setElement(2, 2, w.z);
         return mat;
     }
 

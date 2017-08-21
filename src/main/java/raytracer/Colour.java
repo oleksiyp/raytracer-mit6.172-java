@@ -1,6 +1,7 @@
 package raytracer;
 
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -10,6 +11,7 @@ import static java.lang.Math.min;
 @AllArgsConstructor
 @Getter
 @ToString
+@EqualsAndHashCode
 public class Colour {
     final double r, g, b;
 

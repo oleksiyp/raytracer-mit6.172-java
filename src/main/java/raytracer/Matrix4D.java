@@ -2,7 +2,10 @@ package raytracer;
 
 import java.util.Arrays;
 
+import static java.lang.Math.abs;
+
 public class Matrix4D {
+    public boolean ident;
     double[][] values;
 
     public Matrix4D() {
@@ -16,10 +19,23 @@ public class Matrix4D {
                 Arrays.copyOf(mat.values[2], 4),
                 Arrays.copyOf(mat.values[3], 4)
         };
+        checkIdent();
+    }
+
+    private void checkIdent() {
+        ident = true;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                if (abs(values[i][j] - (i == j ? 1 : 0)) >= Primitives.EPSILON) {
+                    ident = false;
+                }
+            }
+        }
     }
 
     public static Matrix4D identity() {
         Matrix4D res = new Matrix4D();
+        res.ident = true;
         res.values[0][0] = 1;
         res.values[1][1] = 1;
         res.values[2][2] = 1;
@@ -29,6 +45,7 @@ public class Matrix4D {
 
     public static Matrix4D translation(Vector3D offset) {
         Matrix4D res = identity();
+        res.ident = false;
         res.values[0][3] = offset.x;
         res.values[1][3] = offset.y;
         res.values[2][3] = offset.z;
@@ -54,13 +71,16 @@ public class Matrix4D {
 
     public void mulRight(Matrix4D otherMat) {
         values = mul(this, otherMat);
+        checkIdent();
     }
 
     public void mulLeft(Matrix4D otherMat) {
         values = mul(otherMat, this);
+        checkIdent();
     }
 
     public void setElement(int i, int j, double val) {
         values[i][j] = val;
+        checkIdent();
     }
 }

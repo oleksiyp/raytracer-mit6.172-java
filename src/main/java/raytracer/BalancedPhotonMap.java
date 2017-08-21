@@ -27,9 +27,9 @@ public class BalancedPhotonMap {
             double max_dist,
             int nphotons) {
 
-        double r = 0, g = 0, b = 0;
+        float r = 0, g = 0, b = 0;
 
-        np.init(pos, normal, max_dist, nphotons);
+        np.init(pos.toFloat(), normal.toFloat(), (float) max_dist, nphotons);
 
         // Locate the nearest photons
         locatePhotons(1);
@@ -42,7 +42,7 @@ public class BalancedPhotonMap {
         // Sum irradiance from all photons
         for (int i = 1; i <= np.found; i++) {
             int idx = np.index[i];
-            if (lp.dirDot(idx, normal) < 0.0) {
+            if (lp.dirDot(idx, normal.toFloat()) < 0.0) {
                 r += lp.powerR(idx);
                 g += lp.powerG(idx);
                 b += lp.powerB(idx);
@@ -53,44 +53,12 @@ public class BalancedPhotonMap {
         return new Colour(r, g, b).multiply((1.0f / Math.PI) / (np.dist2[0]));
     }
 
-    public Colour irradianceEstimate2(
-            Point3D pos,
-            Vector3D normal,
-            double maxDist) {
-
-        double r = 0, g = 0, b = 0;
-        int found = 0;
-        double maxDist2 = maxDist * maxDist;
-
-
-        // Sum irradiance from all photons
-        for (int i = 1; i <= nStoredPhotons; i++) {
-            double dist = lp.dist(i, normal, pos);
-            if (dist * dist < maxDist2) {
-                if (lp.dirDot(i, normal) < 0.0) {
-                    r += lp.powerR(i);
-                    g += lp.powerG(i);
-                    b += lp.powerB(i);
-                }
-                found++;
-            }
-        }
-
-        // If less than 2 photons return
-        if (found < 2) {
-            return null;
-        }
-
-        // Take into account (estimate of) density
-        return new Colour(r, g, b).multiply((1.0f / Math.PI) / maxDist2);
-    }
-
 
     private void locatePhotons(int index) {
-        double dist1;
-        double dist2;
+        float dist1;
+        float dist2;
 
-        Vector3D normal = np.normal;
+        Vector3Df normal = np.normal;
 
         if (index < half_stored_photons) {
             int plane = lp.plane(index);
@@ -127,15 +95,15 @@ public class BalancedPhotonMap {
         }
     }
 
-    private void add(int index, double dist2) {
+    private void add(int index, float dist2) {
         np.found++;
         np.dist2[np.found] = dist2;
         np.index[np.found] = index;
     }
 
-    private void addFull(int index, double dist2) {
+    private void addFull(int index, float dist2) {
         int j;
-        double maxDist = -1;
+        float maxDist = -1;
         int maxIndex = -1;
         j = 1;
         while (j <= np.found) {
@@ -149,19 +117,6 @@ public class BalancedPhotonMap {
             np.dist2[maxIndex] = dist2;
             np.index[maxIndex] = index;
         }
-    }
-
-    private double dist(Photon p, Vector3D normal, Point3D pos) {
-        double distx1 = p.pos.x - pos.x;
-        double disty1 = p.pos.y - pos.y;
-        double distz1 = p.pos.z - pos.z;
-
-        double dist2 = distx1 * distx1 + disty1 * disty1 + distz1 * distz1;
-        double discFix = normal.x * distx1 + normal.y * disty1 + normal.z * distz1;
-
-        discFix = abs(discFix);
-        dist2 *= discFix  * 0.010 + 1;
-        return dist2;
     }
 
     public BalancedPhotonMap copy() {

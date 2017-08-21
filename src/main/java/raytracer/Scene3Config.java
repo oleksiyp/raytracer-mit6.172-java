@@ -25,10 +25,10 @@ public class Scene3Config extends CommonConfig {
 
         // Water surface
         scene.add(new DisplacedSurface(water,
-                -22.0,
                 499,
                 499,
-                new PerlinNoise(1, 0.14, 1.0, 3)));
+                new PerlinNoise(1, 0.14, 1.0, 3)))
+                .translate(new Vector3D(0, -22, 0));
 
 
         photonLight = scene.add(new SquarePhotonLight(

@@ -22,6 +22,14 @@ public class Ray3D {
         colour = new Colour(0, 0, 0);
     }
 
+    public Ray3D(Ray3D ray) {
+        this.origin = ray.getOrigin();
+        this.dir = ray.getDir();
+        if (intersection.isSet()) {
+            this.setIntersection(intersection.getPoint(), intersection.getNormal(), intersection.getTValue(), intersection.getMat());
+        }
+    }
+
 
     public Intersection getIntersection() {
         return intersection;

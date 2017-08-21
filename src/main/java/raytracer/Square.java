@@ -15,7 +15,7 @@ public class Square extends SceneObject {
             Point3D p = origin.add(dir.multiply(lambda));
             if (p.x <= 16 && p.x >= -16 && p.z <= 16 && p.z >= -16) {
                 ray.setIntersection(p, new Vector3D(0, -1, 0), lambda, material);
-
+                ray.intersection.transformBack(modelToWorld);
                 return true;
             }
         }

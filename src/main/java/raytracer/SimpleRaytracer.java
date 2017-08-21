@@ -192,12 +192,13 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
 
                 T = lhs.subtract(rhs);
             } else {
+                // Total internal reflection
                 Vector3D rhs = ints.normal.multiply(2 * ray.dir.dot(ints.normal));
                 T = ray.dir.subtract(rhs);
             }
 
             Ray3D newRay = new Ray3D(ints.point, T);
-            traverseEntireScene(newRay, true);
+            traverseEntireScene(newRay, false);
 
             if (newRay.intersection.isSet()) {
                 computeShading(newRay, depth - 1, getDirectly);

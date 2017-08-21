@@ -1,6 +1,7 @@
 package raytracer;
 
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -9,6 +10,7 @@ import static java.lang.Math.sqrt;
 @AllArgsConstructor
 @ToString
 @Getter
+@EqualsAndHashCode
 public class Vector3D {
     final double x, y, z;
 
@@ -41,6 +43,9 @@ public class Vector3D {
     }
 
     public Vector3D transform(Matrix4D mat) {
+        if (mat.ident) {
+            return this;
+        }
         return new Vector3D(
                 x * mat.values[0][0] + y * mat.values[0][1] + z * mat.values[0][2],
                 x * mat.values[1][0] + y * mat.values[1][1] + z * mat.values[1][2],
@@ -53,5 +58,9 @@ public class Vector3D {
 
     public double mag() {
         return sqrt(x * x + y * y + z * z);
+    }
+
+    public Vector3Df toFloat() {
+        return new Vector3Df((float) x, (float) y, (float) z);
     }
 }

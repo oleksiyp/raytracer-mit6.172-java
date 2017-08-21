@@ -1,38 +1,34 @@
 package raytracer;
 
+import static raytracer.Primitives.EPSILON;
+
 public class DisplacedSurface extends SceneObject {
     final int xcoords;
     final int zcoords;
-    final double middle;
     final PerlinNoise perlinNoise;
     final Material material;
     final double maxDisp;
     final Point3D[][] points;
-    final double topBound;
-    final double bottomBound;
 
-    public DisplacedSurface(Material material, double middle, int n, int m, PerlinNoise noise) {
+    public DisplacedSurface(Material material, int n, int m, PerlinNoise noise) {
         perlinNoise = noise;
         this.material = material;
 
         xcoords = n;
         zcoords = m;
-        this.middle = middle;
         maxDisp = 1.0;
 
         points = new Point3D[n + 1][m + 1];
-
-        topBound = middle + maxDisp;
-        bottomBound = middle - maxDisp;
 
         makeSurface(0);
     }
 
     private boolean checkIntersectionGrid(
-            int xcoord, int zcoord,
-            Point3D origin, Vector3D dir,
-            Ray3D ray,
-            Matrix4D modelToWorld) {
+            int xcoord,
+            int zcoord,
+            Point3D origin,
+            Vector3D dir,
+            Ray3D ray) {
 
         // Each square grid is made up of to triages (A and B).  This code checks
         // to see if the ray intersections with either of them.  If the ray
@@ -61,25 +57,43 @@ public class DisplacedSurface extends SceneObject {
         c = points[xcoord][zcoord + 1];
         d = points[xcoord + 1][zcoord + 1];
 
-        n1 = (b.subtract(a)).cross(d.subtract(a));
+        Vector3D ba = b.subtract(a);
+        Vector3D da = d.subtract(a);
+        Vector3D db = d.subtract(b);
+        Vector3D ad = a.subtract(d);
+        Vector3D bd = b.subtract(d);
+        Vector3D cb = c.subtract(b);
+        Vector3D dc = d.subtract(c);
+        n1 = ba.cross(da);
 
-        t1 = (a.subtract(origin)).dot(n1) / (dir.dot(n1));
+        Vector3D ao = a.subtract(origin);
+        t1 = ao.dot(n1) / (dir.dot(n1));
         x1 = origin.add(dir.multiply(t1));
-        if (((b.subtract(a)).cross(x1.subtract(a))).dot(n1) >= 0 &&
-                ((d.subtract(b)).cross(x1.subtract(b))).dot(n1) >= 0 &&
-                ((a.subtract(d)).cross(x1.subtract(d))).dot(n1) >= 0) {
+
+        Vector3D x1a = x1.subtract(a);
+        Vector3D x1b = x1.subtract(b);
+        Vector3D x1d = x1.subtract(d);
+        if ((ba.cross(x1a)).dot(n1) >= 0 &&
+                (db.cross(x1b)).dot(n1) >= 0 &&
+                (ad.cross(x1d)).dot(n1) >= 0) {
             i = 1;
         }
 
-        n2 = (d.subtract(c)).cross(b.subtract(c));
+        n2 = dc.cross(b.subtract(c));
 
-        t2 = (c.subtract(origin)).dot(n2) / (dir.dot(n2));
+        Vector3D co = c.subtract(origin);
+        t2 = co.dot(n2) / (dir.dot(n2));
         if (i != 1 || t2 < t1) {
             x2 = origin.add(dir.multiply(t2));
-            if (((d.subtract(c)).cross(x2.subtract(c))).dot(n2) >= 0 &&
-                    ((b.subtract(d)).cross(x2.subtract(d))).dot(n2) >= 0 &&
-                    ((c.subtract(b)).cross(x2.subtract(b))).dot(n2) >= 0)
+            Vector3D x2b = x2.subtract(b);
+            Vector3D x2d = x2.subtract(d);
+            Vector3D x2c = x2.subtract(c);
+
+            if ((dc.cross(x2c)).dot(n2) >= 0 &&
+                    (bd.cross(x2d)).dot(n2) >= 0 &&
+                    (cb.cross(x2b)).dot(n2) >= 0)
                 i = 2;
+
         }
 
         if (i == 1 && ray.lessDistant(t1)) {
@@ -98,24 +112,126 @@ public class DisplacedSurface extends SceneObject {
 
     @Override
     public boolean intersect(Ray3D ray, Matrix4D worldToModel, Matrix4D modelToWorld) {
+        Point3D origin = ray.getOrigin().transform(worldToModel);
+        Vector3D dir = ray.getDir().transform(worldToModel);
+
+        Ray3D mRay = new Ray3D(origin, dir);
+        intersectBBox(mRay);
+        if (!mRay.intersection.isSet()) {
+            return false;
+        }
+
+        if (!ray.lessDistant(mRay.getIntersection().getTValue())) {
+            return false;
+        }
+
+        double n = xcoords + 1 + zcoords + 1;
+        Vector3D d = dir.normalize().multiply(100 * 1.41421356237 / n);
+        Point3D pt = mRay.intersection.point.add(d.multiply(1 / n));
+
+        int px1 = -1, pz1 = -1;
+        for (int i = 0; i < n; i++) {
+            int x1 = (int) Math.floor(xcoords * (pt.x + 50) / 100);
+            int z1 = (int) Math.floor(zcoords  * (pt.z + 50) / 100);
+
+            if (x1 < 0 || z1 < 0 || x1 >= xcoords || z1 >= zcoords) {
+                return false;
+            }
+
+            if (x1 != px1 || z1 != pz1) {
+                if (checkIntersectionGrid(x1, z1, origin, dir, ray)) {
+                    ray.intersection.transformBack(modelToWorld);
+                    return true;
+                }
+                if (x1 + 1 < xcoords && checkIntersectionGrid(x1 + 1, z1, origin, dir, ray)) {
+                    ray.intersection.transformBack(modelToWorld);
+                    return true;
+                }
+                if (z1 + 1 < zcoords && checkIntersectionGrid(x1, z1 + 1, origin, dir, ray)) {
+                    ray.intersection.transformBack(modelToWorld);
+                    return true;
+                }
+            }
+
+            px1 = x1;
+            pz1 = z1;
+            pt = pt.add(d);
+        }
+        return false;
+    }
+
+    private void intersectBBox(Ray3D ray) {
         Point3D origin = ray.origin;
         Vector3D dir = ray.dir;
+        double lambda;
+        Point3D p;
 
-        boolean intersected = false;
+        double xl = -50, xh = 50;
+        double yl = -maxDisp, yh = maxDisp;
+        double zl = -50, zh = 50;
 
-        // Check each triangle in grid to see if it intersects with this ray
-        for (int x1 = 0; x1 < xcoords; x1++) {
-            for (int z1 = 0; z1 < zcoords; z1++) {
-                intersected |= checkIntersectionGrid(x1, z1, origin, dir, ray,
-                        modelToWorld);
+        if (xl <= origin.x && origin.x <= xh &&
+                yl <= origin.y && origin.y <= yh &&
+                zl <= origin.y && origin.y <= zh) {
+            lambda = 2 * EPSILON;
+            if (ray.lessDistant(lambda)) {
+                p = origin.add(dir.multiply(lambda));
+                ray.setIntersection(p, new Vector3D(0, 0, 0), lambda, material);
+                return;
             }
         }
 
-        return intersected;
+        lambda = (zh - origin.getZ()) / dir.getZ();
+        if (ray.lessDistant(lambda)) {
+            p = origin.add(dir.multiply(lambda));
+            if (p.x <= xh && p.x >= xl && p.y <= yh && p.y >= yl) {
+                ray.setIntersection(p, new Vector3D(0, 0, -1), lambda, material);
+            }
+        }
+
+        lambda = (zl - origin.getZ()) / dir.getZ();
+        if (ray.lessDistant(lambda)) {
+            p = origin.add(dir.multiply(lambda));
+            if (p.x <= xh && p.x >= xl && p.y <= yh && p.y >= yl) {
+                ray.setIntersection(p, new Vector3D(0, 0, 1), lambda, material);
+            }
+        }
+
+        lambda = (yh - origin.getY()) / dir.getY();
+        if (ray.lessDistant(lambda)) {
+            p = origin.add(dir.multiply(lambda));
+            if (p.x <= xh && p.x >= xl && p.z <= zh && p.z >= zl) {
+                ray.setIntersection(p, new Vector3D(0, -1,0), lambda, material);
+            }
+        }
+
+        lambda = (yl - origin.getY()) / dir.getY();
+        if (ray.lessDistant(lambda)) {
+            p = origin.add(dir.multiply(lambda));
+            if (p.x <= xh && p.x >= xl && p.z <= zh && p.z >= zl) {
+                ray.setIntersection(p, new Vector3D(0, 1, 0), lambda, material);
+            }
+        }
+
+        lambda = (xh - origin.getX()) / dir.getX();
+        if (ray.lessDistant(lambda)) {
+            p = origin.add(dir.multiply(lambda));
+            if (p.y <= yh && p.y >= yl && p.z <= zh && p.z >= zl) {
+                ray.setIntersection(p, new Vector3D(-1, 0, 0), lambda, material);
+            }
+        }
+
+        lambda = (xl - origin.getX()) / dir.getX();
+        if (ray.lessDistant(lambda)) {
+            p = origin.add(dir.multiply(lambda));
+            if (p.y <= yh && p.y >= yl && p.z <= zh && p.z >= zl) {
+                ray.setIntersection(p, new Vector3D(1, 0, 0), lambda, material);
+            }
+        }
     }
 
     public void makeSurface(double time) {
-   /* Extents are -50 to +50 in x-z plane, offset by height */
+        /* Extents are -50 to +50 in x-z plane, offset by height */
         int z = 0;
         int x = 0;
 
@@ -124,7 +240,7 @@ public class DisplacedSurface extends SceneObject {
 
                 double xc = (x * 100.0) / xcoords - 50.0;
                 double zc = (z * 100.0) / zcoords - 50.0;
-                double y = perlinNoise.get(xc / 1.2, zc, time) + middle;
+                double y = perlinNoise.get(xc / 1.2, zc, time);
 
                 points[x][z] = new Point3D(xc, y, zc);
             }
