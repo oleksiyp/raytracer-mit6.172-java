@@ -58,12 +58,17 @@ public class DisplacedSurface extends SceneObject {
         d = points[xcoord + 1][zcoord + 1];
 
         Vector3D ba = b.subtract(a);
-        Vector3D da = d.subtract(a);
-        Vector3D db = d.subtract(b);
-        Vector3D ad = a.subtract(d);
-        Vector3D bd = b.subtract(d);
-        Vector3D cb = c.subtract(b);
         Vector3D dc = d.subtract(c);
+
+        Vector3D cb = c.subtract(b);
+        Vector3D bc = b.subtract(c);
+
+        Vector3D da = d.subtract(a);
+        Vector3D ad = a.subtract(d);
+
+        Vector3D db = d.subtract(b);
+        Vector3D bd = b.subtract(d);
+
         n1 = ba.cross(da);
 
         Vector3D ao = a.subtract(origin);
@@ -79,7 +84,7 @@ public class DisplacedSurface extends SceneObject {
             i = 1;
         }
 
-        n2 = dc.cross(b.subtract(c));
+        n2 = dc.cross(bc);
 
         Vector3D co = c.subtract(origin);
         t2 = co.dot(n2) / (dir.dot(n2));
@@ -232,11 +237,8 @@ public class DisplacedSurface extends SceneObject {
 
     public void makeSurface(double time) {
         /* Extents are -50 to +50 in x-z plane, offset by height */
-        int z = 0;
-        int x = 0;
-
-        for (x = 0; x < xcoords + 1; x++) {
-            for (z = 0; z < zcoords + 1; z++) {
+        for (int x = 0; x < xcoords + 1; x++) {
+            for (int z = 0; z < zcoords + 1; z++) {
 
                 double xc = (x * 100.0) / xcoords - 50.0;
                 double zc = (z * 100.0) / zcoords - 50.0;

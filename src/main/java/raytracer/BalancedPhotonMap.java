@@ -3,6 +3,7 @@ package raytracer;
 import java.util.Arrays;
 
 import static java.lang.Math.abs;
+import static raytracer.LinearPhotons.DENOM;
 
 public class BalancedPhotonMap {
     int nStoredPhotons;
@@ -27,9 +28,12 @@ public class BalancedPhotonMap {
             double max_dist,
             int nphotons) {
 
-        float r = 0, g = 0, b = 0;
+        int r = 0, g = 0, b = 0;
 
-        np.init(pos.toFloat(), normal.toFloat(), (float) max_dist, nphotons);
+        Vector3Di iNorm = lp.normal(normal);
+        Point3Di iPos = lp.pos(pos);
+        int dist = (int) (max_dist * DENOM);
+        np.init(iPos, iNorm, dist, nphotons);
 
         // Locate the nearest photons
         locatePhotons(1);
@@ -42,48 +46,48 @@ public class BalancedPhotonMap {
         // Sum irradiance from all photons
         for (int i = 1; i <= np.found; i++) {
             int idx = np.index[i];
-            if (lp.dirDot(idx, normal.toFloat()) < 0.0) {
+            if (lp.dirDot(idx, iNorm) < 0) {
                 r += lp.powerR(idx);
                 g += lp.powerG(idx);
                 b += lp.powerB(idx);
             }
         }
 
-        // Take into account (estimate of) density
-        return new Colour(r, g, b).multiply((1.0f / Math.PI) / (np.dist2[0]));
+        float rr = r, gg = g, bb = b;
+        rr /= DENOM;
+        gg /= DENOM;
+        bb /= DENOM;
+        // Take into account (estiate of) density
+        return new Colour(rr, gg, bb).multiply((DENOM / Math.PI) / (np.maxDist2));
     }
 
-
     private void locatePhotons(int index) {
-        float dist1;
-        float dist2;
+        int dist1;
+        int dist2;
 
-        Vector3Df normal = np.normal;
+        Vector3Di normal = np.normal;
 
         if (index < half_stored_photons) {
             int plane = lp.plane(index);
             dist1 = np.pos.coord(plane) - lp.coord(index, plane);
 
             // If dist1 is positive search right plane
-            if (dist1 > 0.0) {
-                locatePhotons(2 * index + 1);
-                if (dist1 * dist1 < np.dist2[0]) {
-                    locatePhotons(2 * index);
-                }
-                // Else, dist1 is negative search left first
-            } else {
-                locatePhotons(2 * index);
-                if (dist1 * dist1 < np.dist2[0]) {
-                    locatePhotons(2 * index + 1);
-                }
+            // Else, dist1 is negative search left first
+            int dist1sq = (dist1 * dist1) >> LinearPhotons.DENOM_BITS;
+            int off = dist1 >>> 31;
+            locatePhotons(2 * index + 1 - off);
+            if (dist1sq < np.maxDist2) {
+                locatePhotons(2 * index + off);
             }
         }
 
         // Adjust the distance for photons that are not on the same plane as this
         // point.
+//        tl.start();
         dist2 = lp.dist(index, normal, np.pos);
+//        tl.end();
 
-        if (dist2 < np.dist2[0]) {
+        if (dist2 < np.maxDist2) {
             // We found a photon :) Insert it in the candidate list
             if (np.found < np.max) {
                 // Array not full
@@ -95,13 +99,13 @@ public class BalancedPhotonMap {
         }
     }
 
-    private void add(int index, float dist2) {
+    private void add(int index, int dist2) {
         np.found++;
         np.dist2[np.found] = dist2;
         np.index[np.found] = index;
     }
 
-    private void addFull(int index, float dist2) {
+    private void addFull(int index, int dist2) {
         int j;
         float maxDist = -1;
         int maxIndex = -1;

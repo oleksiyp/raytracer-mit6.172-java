@@ -6,7 +6,7 @@ import static java.lang.Math.sqrt;
 public class FastMath {
     public static double acos(double x) {
         double negate = x < 0 ? 1 : 0;
-        x = abs(x);
+        x = Math.abs(x);
         double ret = -0.0187293;
         ret = ret * x;
         ret = ret + 0.0742610;
@@ -17,5 +17,10 @@ public class FastMath {
         ret = ret * sqrt(1.0-x);
         ret = ret - 2 * negate * ret;
         return negate * 3.14159265358979 + ret;
+    }
+
+    public static int abs(int v) {
+        int mask = (v >> 32) - 1;
+        return (v + mask) ^ mask;
     }
 }

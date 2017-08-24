@@ -24,67 +24,73 @@ public class Cube extends SceneObject {
         Point3D origin = ray.getOrigin().transform(worldToModel);
         Vector3D dir = ray.getDir().transform(worldToModel);
 
-        lambda = (50 - origin.getZ()) / dir.getZ();
-        if (ray.lessDistant(lambda)) {
-            p = origin.add(dir.multiply(lambda));
-            if (p.x <= 50 && p.x >= -50 && p.y <= 50 && p.y >= -50) {
-                ray.setIntersection(p, new Vector3D(0, 0, d()), lambda, mat1);
+        StopWatch.swStart();
+        try {
 
-                return true;
+            lambda = (50 - origin.getZ()) / dir.getZ();
+            if (ray.lessDistant(lambda)) {
+                p = origin.add(dir.multiply(lambda));
+                if (p.x <= 50 && p.x >= -50 && p.y <= 50 && p.y >= -50) {
+                    ray.setIntersection(p, new Vector3D(0, 0, d()), lambda, mat1);
+                    return true;
+                }
             }
-        }
 
-        lambda = (-50 - origin.getZ()) / dir.getZ();
-        if (ray.lessDistant(lambda)) {
-            p = origin.add(dir.multiply(lambda));
-            if (p.x <= 50 && p.x >= -50 && p.y <= 50 && p.y >= -50) {
-                ray.setIntersection(p, new Vector3D(0, 0, -d()), lambda, mat2);
+            lambda = (-50 - origin.getZ()) / dir.getZ();
+            if (ray.lessDistant(lambda)) {
+                p = origin.add(dir.multiply(lambda));
+                if (p.x <= 50 && p.x >= -50 && p.y <= 50 && p.y >= -50) {
+                    ray.setIntersection(p, new Vector3D(0, 0, -d()), lambda, mat2);
 
-                return true;
+                    return true;
+                }
             }
-        }
 
-        lambda = (50 - origin.getY()) / dir.getY();
-        if (ray.lessDistant(lambda)) {
-            p = origin.add(dir.multiply(lambda));
-            if (p.x <= 50 && p.x >= -50 && p.z <= 50 && p.z >= -50) {
-                ray.setIntersection(p, new Vector3D(0, d(),0), lambda, mat3);
-                ray.intersection.transformBack(modelToWorld);
-                return true;
+            lambda = (50 - origin.getY()) / dir.getY();
+            if (ray.lessDistant(lambda)) {
+                p = origin.add(dir.multiply(lambda));
+                if (p.x <= 50 && p.x >= -50 && p.z <= 50 && p.z >= -50) {
+                    ray.setIntersection(p, new Vector3D(0, d(), 0), lambda, mat3);
+                    ray.intersection.transformBack(modelToWorld);
+                    return true;
+                }
             }
-        }
 
-        lambda = (-50 - origin.getY()) / dir.getY();
-        if (ray.lessDistant(lambda)) {
-            p = origin.add(dir.multiply(lambda));
-            if (p.x <= 50 && p.x >= -50 && p.z <= 50 && p.z >= -50) {
-                ray.setIntersection(p, new Vector3D(0, -d(), 0), lambda, mat4);
-                ray.intersection.transformBack(modelToWorld);
-                return true;
+            lambda = (-50 - origin.getY()) / dir.getY();
+            if (ray.lessDistant(lambda)) {
+                p = origin.add(dir.multiply(lambda));
+                if (p.x <= 50 && p.x >= -50 && p.z <= 50 && p.z >= -50) {
+                    ray.setIntersection(p, new Vector3D(0, -d(), 0), lambda, mat4);
+                    ray.intersection.transformBack(modelToWorld);
+                    return true;
+                }
             }
-        }
 
-        lambda = (50 - origin.getX()) / dir.getX();
-        if (ray.lessDistant(lambda)) {
-            p = origin.add(dir.multiply(lambda));
-            if (p.y <= 50 && p.y >= -50 && p.z <= 50 && p.z >= -50) {
-                ray.setIntersection(p, new Vector3D(d(), 0, 0), lambda, mat5);
-                ray.intersection.transformBack(modelToWorld);
-                return true;
+            lambda = (50 - origin.getX()) / dir.getX();
+            if (ray.lessDistant(lambda)) {
+                p = origin.add(dir.multiply(lambda));
+                if (p.y <= 50 && p.y >= -50 && p.z <= 50 && p.z >= -50) {
+                    ray.setIntersection(p, new Vector3D(d(), 0, 0), lambda, mat5);
+                    ray.intersection.transformBack(modelToWorld);
+                    return true;
+                }
             }
-        }
 
-        lambda = (-50 - origin.getX()) / dir.getX();
-        if (ray.lessDistant(lambda)) {
-            p = origin.add(dir.multiply(lambda));
-            if (p.y <= 50 && p.y >= -50 && p.z <= 50 && p.z >= -50) {
-                ray.setIntersection(p, new Vector3D(-d(), 0, 0), lambda, mat6);
-                ray.intersection.transformBack(modelToWorld);
-                return true;
+            lambda = (-50 - origin.getX()) / dir.getX();
+            if (ray.lessDistant(lambda)) {
+                p = origin.add(dir.multiply(lambda));
+                if (p.y <= 50 && p.y >= -50 && p.z <= 50 && p.z >= -50) {
+                    ray.setIntersection(p, new Vector3D(-d(), 0, 0), lambda, mat6);
+                    ray.intersection.transformBack(modelToWorld);
+                    return true;
+                }
             }
-        }
 
-        return false;
+            return false;
+
+        }finally {
+            StopWatch.swEnd();
+        }
 
     }
 

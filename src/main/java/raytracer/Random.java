@@ -14,6 +14,7 @@ public class Random {
 
     int mt[];                   // state vector
     int mti;                             // index into mt
+    private java.util.Random r = new java.util.Random();
 
     public Random() {
         this(2);
@@ -61,40 +62,20 @@ public class Random {
         mt[0] = 0x80000000; // MSB is 1; assuring non-zero initial array
     }
 
+    static int x=123456789, y=362436069, z=521288629;
+
     int rand() {
-        // generate 32 random bits
-        int y;
+        int t;
+        x ^= x << 16;
+        x ^= x >> 5;
+        x ^= x << 1;
 
-        if (mti >= MERS_N) {
-            // generate MERS_N words at one time
-            int LOWER_MASK = (1 << MERS_R)-1; // lower MERS_R bits
-            int UPPER_MASK = -1 << MERS_R;      // upper (32 - MERS_R) bits
-            int mag01[] = {0, MERS_A} ;
+        t = x;
+        x = y;
+        y = z;
+        z = t ^ x ^ y;
 
-            int kk;
-            for (kk = 0; kk < MERS_N - MERS_M; kk++) {
-                y = (mt[kk] & UPPER_MASK) | (mt[kk + 1] & LOWER_MASK);
-                mt[kk] = mt[kk + MERS_M] ^ (y >> 1) ^ mag01[y & 1];
-            }
-
-            for (; kk < MERS_N - 1; kk++) {
-                y = (mt[kk] & UPPER_MASK) | (mt[kk + 1] & LOWER_MASK);
-                mt[kk] = mt[kk + (MERS_M - MERS_N)] ^ (y >> 1) ^ mag01[y & 1];
-            }
-
-            y = (mt[MERS_N - 1] & UPPER_MASK) | (mt[0] & LOWER_MASK);
-            mt[MERS_N - 1] = mt[MERS_M - 1] ^ (y >> 1) ^ mag01[y & 1];
-            mti = 0;
-        }
-
-        y = mt[mti++];
-
-        // Tempering (May be omitted):
-        y ^= y >> MERS_U;
-        y ^= (y << MERS_S) & MERS_B;
-        y ^= (y << MERS_T) & MERS_C;
-        y ^= y >> MERS_L;
-        return y;
+        return z;
     }
 
 

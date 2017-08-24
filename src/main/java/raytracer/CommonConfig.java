@@ -1,11 +1,12 @@
 package raytracer;
 
 import static raytracer.Primitives.c;
+import static raytracer.Primitives.p;
 import static raytracer.Primitives.v;
 
 public class CommonConfig {
     // Camera parameters.
-    Point3D eye = Primitives.p(0, 20, 100);
+    Point3D eye = p(0, 0, 49.9);
     Vector3D gaze = v(0, 0, -1);
     Vector3D up = v(0, 1, 0);
     double fov = 20;

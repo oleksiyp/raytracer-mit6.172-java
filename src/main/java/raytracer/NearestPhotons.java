@@ -1,16 +1,17 @@
 package raytracer;
 
 public class NearestPhotons {
-    float[] dist2;
+    int[] dist2;
     int[] index;
-    Point3Df pos;
+    Point3Di pos;
     int max;
     int found;
-    Vector3Df normal;
+    Vector3Di normal;
+    int maxDist2;
 
-    public void init(Point3Df pos, Vector3Df normal, float max_dist, int nphotons) {
+    public void init(Point3Di pos, Vector3Di normal, int max_dist, int nphotons) {
         if (dist2 == null || dist2.length < nphotons + 1) {
-            dist2 = new float[nphotons + 1];
+            dist2 = new int[nphotons + 1];
         }
         if (index == null || index.length < nphotons + 1) {
             index = new int[nphotons + 1];
@@ -18,7 +19,7 @@ public class NearestPhotons {
         this.pos = pos;
         max = nphotons;
         found = 0;
-        dist2[0] = max_dist * max_dist;
+        maxDist2 = (max_dist * max_dist) >> LinearPhotons.DENOM_BITS;
         index[0] = 0;
         this.normal = normal;
     }

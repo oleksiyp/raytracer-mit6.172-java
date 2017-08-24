@@ -57,7 +57,11 @@ public class Vector3D {
     }
 
     public double mag() {
-        return sqrt(x * x + y * y + z * z);
+        return sqrt(mag2());
+    }
+
+    private double mag2() {
+        return x * x + y * y + z * z;
     }
 
     public Vector3Df toFloat() {

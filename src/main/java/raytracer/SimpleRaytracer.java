@@ -12,6 +12,10 @@ import static java.lang.System.currentTimeMillis;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static raytracer.Matrix4D.identity;
 import static raytracer.Primitives.p;
+import static raytracer.Primitives.v;
+import static raytracer.StopWatch.swTotalN;
+import static raytracer.StopWatch.swTotalT;
+import static raytracer.StopWatch.swReset;
 
 public class SimpleRaytracer implements Scene, Raytracer, Renderer {
     final SceneNode root;
@@ -56,10 +60,8 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
         initObjects();
         initViewMatrix();
 
-        Point3D origin = p(0, 0, 150);
-
-
         ExecutorService executor = newFixedThreadPool(getRuntime().availableProcessors());
+//        ExecutorService executor = newFixedThreadPool(1);
 
         CountDownLatch latch = new CountDownLatch(height);
         for (int j = 0; j < height; j++) {
@@ -67,13 +69,16 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
             int jj = j;
             executor.execute(() -> {
                 long t = currentTimeMillis();
-                StopWatch.reset();
+                swReset();
                 for (int i = 0; i < width; i++) {
                     double x = (99 * i / (double) (width) - 49.5);
-                    Point3D imagePlane = p(x, y, 49.9);
-                    Vector3D dir = imagePlane.subtract(origin).normalize();
+                    Vector3D dir = v(x, y, 100.1).normalize();
+                    Point3D origin = p(x, y, 0);
 
-                    Ray3D ray = new Ray3D(imagePlane, dir);
+                    origin = origin.transform(viewToWorld);
+                    dir = dir.transform(viewToWorld);
+
+                    Ray3D ray = new Ray3D(origin, dir);
 
                     traverseEntireScene(ray, false);
                     if (ray.getIntersection().isSet()) {
@@ -83,8 +88,9 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
                 }
                 long tt = currentTimeMillis();
                 double t1 = (tt - t) / 1e3;
-                double tf = StopWatch.get() / 1e9;
-                System.out.println(jj + " " + t1 + " " + tf / t1 * 100.0);
+                double tf = swTotalT() / 1e9;
+                int n = swTotalN();
+                System.out.printf("%d %.3f %.3f %.1f%% %d%n", jj, t1, tf, tf / t1 * 100.0, n);
 
                 latch.countDown();
             });
@@ -115,9 +121,9 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
         viewToWorld.setElement(1, 1, up.y);
         viewToWorld.setElement(2, 1, up.z);
 
-        viewToWorld.setElement(0, 2, -view.x);
-        viewToWorld.setElement(1, 2, -view.y);
-        viewToWorld.setElement(2, 2, -view.z);
+        viewToWorld.setElement(0, 2, view.x);
+        viewToWorld.setElement(1, 2, view.y);
+        viewToWorld.setElement(2, 2, view.z);
 
         viewToWorld.setElement(0, 3, eye.x);
         viewToWorld.setElement(1, 3, eye.y);

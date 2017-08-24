@@ -9,8 +9,8 @@ public class Scene2Config extends CommonConfig {
 
     SceneNode sceneCube;
     SceneNode mirrorSphere;
-    SceneNode glassSphere;
     SceneNode photonLight;
+    SceneNode waterSurface;
 
     public void config(Scene scene) {
         sceneCube = scene.add(new Cube(Direction.IN, grey, grey, grey, grey, green, blue));
@@ -20,10 +20,11 @@ public class Scene2Config extends CommonConfig {
         mirrorSphere.translate(new Vector3D(-27, -30, -30));
 
         // Water surface
-        scene.add(new DisplacedSurface(water,
+        waterSurface = scene.add(new DisplacedSurface(water,
                 499,
                 499,
-                new PerlinNoise(1, 0.14, 1.0, 3)))
+                new PerlinNoise(1, 0.14, 1.0, 3)));
+        waterSurface
                 .translate(new Vector3D(0, 22, 0));
 
 

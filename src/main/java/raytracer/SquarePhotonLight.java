@@ -168,6 +168,7 @@ public class SquarePhotonLight extends Square implements Light {
             i++;
         }
         map.scalePhotonPower(1.0 / i);
+        System.out.println("bmap");
         bbmap = map.balance();
 
         // Caustics
@@ -266,6 +267,7 @@ public class SquarePhotonLight extends Square implements Light {
             }
         }
         map.scalePhotonPower(1.0 / emitted);
+        System.out.println("cmap");
         ccmap = map.balance();
     }
 
