@@ -31,15 +31,18 @@ public class SquarePhotonLight extends Square implements Light {
     }
 
 
+
     @Override
     public void init(Raytracer raytracer, boolean copy) {
-        icache = new IrradianceCache(
-                lightOpts.irradianceCacheTolerance,
-                lightOpts.irradianceCacheSpacing);
-
         rnd = new Random();
 
-        tracePhotonMap(lightOpts.numPhotons, lightOpts.numCausticPhotons, raytracer);
+        if (!copy) {
+            icache = new IrradianceCache(
+                    lightOpts.irradianceCacheTolerance,
+                    lightOpts.irradianceCacheSpacing);
+
+            tracePhotonMap(lightOpts.numPhotons, lightOpts.numCausticPhotons, raytracer);
+        }
     }
 
     Point3D tpmPt = origin();
@@ -547,5 +550,19 @@ public class SquarePhotonLight extends Square implements Light {
             directCol.multiply(1.0 / (N * N));
             ray.addColour(directCol);
         }
+    }
+
+    @Override
+    public SceneObject copy() {
+        return new SquarePhotonLight(this);
+    }
+
+    private SquarePhotonLight(SquarePhotonLight photonLight) {
+        super(photonLight.material);
+        this.colour = photonLight.colour;
+        this.lightOpts = photonLight.lightOpts;
+        this.icache = photonLight.icache;
+        this.cmap = photonLight.cmap.copy();
+        this.bmap = photonLight.bmap.copy();
     }
 }

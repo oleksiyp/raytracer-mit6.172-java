@@ -2,6 +2,7 @@ package raytracer;
 
 import static raytracer.Point3D.origin;
 import static raytracer.Primitives.EPSILON;
+import static raytracer.Primitives.p;
 import static raytracer.Vector3D.ZERO;
 import static raytracer.Vector3D.zero;
 
@@ -339,5 +340,30 @@ public class DisplacedSurface extends SceneObject {
         }
 
     }
+
+    @Override
+    public SceneObject copy() {
+        return new DisplacedSurface(material, points, perlinNoise);
+    }
+
+    public DisplacedSurface(Material material, Point3D [][]points, PerlinNoise noise) {
+        perlinNoise = noise;
+        this.material = material;
+
+        xcoords = points.length - 1;
+        zcoords = points[0].length - 1;
+        maxDisp = 1.0;
+
+        this.points = points;
+        for (int i = 0; i < xcoords + 1; i++) {
+            for (int j = 0; j < zcoords + 1; j++) {
+                points[i][j] = origin();
+            }
+        }
+
+        makeSurface(0);
+    }
+
+
 
 }

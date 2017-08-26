@@ -1,5 +1,6 @@
 package raytracer;
 
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -17,6 +18,8 @@ public class IrradianceCache {
     final double maxSpacing;
     final int[] vals;
     int freeSample = 0;
+    private Lock writeLock = rwLock.writeLock();
+    private Lock readLock = rwLock.readLock();
 
     public IrradianceCache(double tolerance, double minSpacing) {
         this.tolerance = toFixed(tolerance);
@@ -30,9 +33,8 @@ public class IrradianceCache {
     public void insert(Point3D pos, Vector3D norm, double r0, Colour irr) {
         r0 = clamp(r0 * tolerance, minSpacing, maxSpacing);
 
-        if (freeSample == vals.length) {
-
-        } else {
+        writeLock.lock();
+        try {
             int i = freeSample;
             freeSample += 10;
             vals[i] = toFixed(pos.x);
@@ -45,6 +47,8 @@ public class IrradianceCache {
             vals[i + 7] = toFixed(irr.r);
             vals[i + 8] = toFixed(irr.g);
             vals[i + 9] = toFixed(irr.b);
+        } finally {
+            writeLock.unlock();
         }
     }
 
@@ -62,16 +66,21 @@ public class IrradianceCache {
         Fixed.point(pos, pt);
         Fixed.vector(norm, vec);
 
-        for (int i = 0; i < freeSample; i += 10) {
-            int wi = weight2(i, pt, vec);
-            if (wi > invTolerance) {
-                wi = (int) sqrt(wi << DENOM_BITS);
-                r += mul(vals[i + 7], wi);
-                g += mul(vals[i + 8], wi);
-                b += mul(vals[i + 9], wi);
-                hasIrr = true;
-                weight += wi;
+        readLock.lock();
+        try {
+            for (int i = 0; i < freeSample; i += 10) {
+                int wi = weight2(i, pt, vec);
+                if (wi > invTolerance) {
+                    wi = (int) sqrt(wi << DENOM_BITS);
+                    r += mul(vals[i + 7], wi);
+                    g += mul(vals[i + 8], wi);
+                    b += mul(vals[i + 9], wi);
+                    hasIrr = true;
+                    weight += wi;
+                }
             }
+        } finally {
+            readLock.unlock();
         }
 
         if (!hasIrr) {

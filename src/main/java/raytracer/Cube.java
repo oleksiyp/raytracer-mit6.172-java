@@ -139,6 +139,11 @@ public class Cube extends SceneObject {
         return false;
     }
 
+    @Override
+    public SceneObject copy() {
+        return new Cube(normalDir, mat1, mat2, mat3, mat4, mat5, mat6);
+    }
+
     private boolean in() {
         return normalDir == Direction.IN;
     }

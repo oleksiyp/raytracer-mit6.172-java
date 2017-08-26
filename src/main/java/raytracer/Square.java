@@ -38,4 +38,9 @@ public class Square extends SceneObject {
 
         return false;
     }
+
+    @Override
+    public SceneObject copy() {
+        return new Square(material);
+    }
 }

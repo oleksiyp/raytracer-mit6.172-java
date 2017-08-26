@@ -35,7 +35,7 @@ public class SceneNode {
     }
 
     public SceneNode() {
-        this(null, null);
+        this(null, (SceneObject) null);
     }
 
     public void translate(Vector3D offset) {
@@ -46,10 +46,26 @@ public class SceneNode {
     }
 
     public SceneNode copy() {
-        return this;
+        return new SceneNode(this, (SceneNode) null);
     }
 
-    public void inject(Raytracer raytracer) {
-
+    private SceneNode(SceneNode inst, SceneNode parent) {
+        if (inst.sceneObject != null) {
+            this.sceneObject = inst.sceneObject.copy();
+        } else {
+            this.sceneObject = null;
+        }
+        childs = new ArrayList<>();
+        if (parent != null) {
+            parent.childs.add(this);
+        }
+        this.parent = parent;
+        transform = inst.transform;
+        invTransform = inst.invTransform;
+        worldToModel = inst.worldToModel;
+        modelToWorld = inst.modelToWorld;
+        for (SceneNode c : inst.childs) {
+            new SceneNode(c, this);
+        }
     }
 }

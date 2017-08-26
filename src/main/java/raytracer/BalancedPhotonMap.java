@@ -1,11 +1,14 @@
 package raytracer;
 
+import java.util.Arrays;
+
 import static java.lang.Math.abs;
 import static java.lang.Math.min;
 import static java.util.Arrays.sort;
 import static raytracer.Fixed.DENOM;
 
 public class BalancedPhotonMap {
+    Photon[] photons;
     int nStoredPhotons;
     int half_stored_photons;
 
@@ -18,6 +21,7 @@ public class BalancedPhotonMap {
     StopWatch lpSw, dstSw, sumSw, srtSw;
 
     public BalancedPhotonMap(Photon[] photons, int nStoredPhotons) {
+        this.photons = Arrays.copyOf(photons, nStoredPhotons);
         this.nStoredPhotons = nStoredPhotons;
         half_stored_photons = nStoredPhotons / 2 - 1;
 
@@ -150,9 +154,15 @@ public class BalancedPhotonMap {
     }
 
     public BalancedPhotonMap copy() {
-        return null;
-//        return new BalancedPhotonMap(
-//                Arrays.copyOf(photons, photons.length),
-//                nStoredPhotons);
+        return new BalancedPhotonMap(this);
+    }
+
+    private BalancedPhotonMap(BalancedPhotonMap bpm) {
+        this.photons = Arrays.copyOf(bpm.photons, nStoredPhotons);
+        this.nStoredPhotons = bpm.nStoredPhotons;
+        half_stored_photons = nStoredPhotons / 2 - 1;
+
+        this.idxs = new long[nStoredPhotons];
+        this.lp = bpm.lp;
     }
 }

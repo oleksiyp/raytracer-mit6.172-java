@@ -92,4 +92,9 @@ public class Sphere extends SceneObject {
         return false;
     }
 
+    @Override
+    public SceneObject copy() {
+        return new Sphere(mat);
+    }
+
 }
