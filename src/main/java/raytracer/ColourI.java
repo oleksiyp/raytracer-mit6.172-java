@@ -10,5 +10,5 @@ import lombok.ToString;
 @Getter
 @EqualsAndHashCode
 public class ColourI {
-    final int r, g, b;
+    int r, g, b;
 }

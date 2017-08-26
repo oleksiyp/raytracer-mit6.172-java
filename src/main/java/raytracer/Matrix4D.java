@@ -83,4 +83,12 @@ public class Matrix4D {
         values[i][j] = val;
         checkIdent();
     }
+
+    public void assign(Matrix4D otherMat) {
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                values[i][j] = otherMat.values[i][j];
+            }
+        }
+    }
 }

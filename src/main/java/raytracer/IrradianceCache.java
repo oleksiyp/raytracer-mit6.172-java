@@ -1,47 +1,50 @@
 package raytracer;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.ToString;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static java.lang.Math.*;
+import static raytracer.Fixed.*;
 
 public class IrradianceCache {
     private static final double ICACHE_MAX_SPACING_RATIO = 100.0;
 
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
-    private final Lock readLock = rwLock.readLock();
-    private final Lock writeLock = rwLock.writeLock();
 
-    final List<Sample> samples;
-    final double tolerance;
+    final int tolerance;
     final double minSpacing;
-    final double invTolerance;
+    final int invTolerance;
     final double maxSpacing;
+    final int[] vals;
+    int freeSample = 0;
 
     public IrradianceCache(double tolerance, double minSpacing) {
-        this.tolerance = tolerance;
+        this.tolerance = toFixed(tolerance);
         this.minSpacing = minSpacing;
-        invTolerance = 1.0 / tolerance;
+        invTolerance = toFixed(1.0 / tolerance);
         maxSpacing = ICACHE_MAX_SPACING_RATIO * minSpacing;
 
-        samples = new ArrayList<>();
+        vals = new int[10 * 100000];
     }
 
     public void insert(Point3D pos, Vector3D norm, double r0, Colour irr) {
         r0 = clamp(r0 * tolerance, minSpacing, maxSpacing);
 
-        writeLock.lock();
-        try {
-            samples.add(new Sample(pos, norm, r0, r0 * tolerance, irr));
-        } finally {
-            writeLock.unlock();
+        if (freeSample == vals.length) {
+
+        } else {
+            int i = freeSample;
+            freeSample += 10;
+            vals[i] = toFixed(pos.x);
+            vals[i + 1] = toFixed(pos.y);
+            vals[i + 2] = toFixed(pos.z);
+            vals[i + 3] = toFixed(norm.x);
+            vals[i + 4] = toFixed(norm.y);
+            vals[i + 5] = toFixed(norm.z);
+            vals[i + 6] = toFixed(r0);
+            vals[i + 7] = toFixed(irr.r);
+            vals[i + 8] = toFixed(irr.g);
+            vals[i + 9] = toFixed(irr.b);
         }
     }
 
@@ -49,62 +52,58 @@ public class IrradianceCache {
         return min(high, max(val, low));
     }
 
-    public Colour getIrradiance(Point3D pos, Vector3D norm) {
-        double weight = 0.0;
+    Point3Di pt = new Point3Di(0, 0, 0);
+    Vector3Di vec = new Vector3Di(0, 0, 0);
+    public boolean getIrradiance(Point3D pos, Vector3D norm, Colour col) {
         boolean hasIrr = false;
-        double r = 0, g = 0, b = 0;
+        int weight = 0;
+        int r = 0, g = 0, b = 0;
 
-        readLock.lock();
-        try {
-            for (int i = 0; i < samples.size(); i++) {
-                Sample s = samples.get(i);
-                double wi = s.weight2(pos, norm);
-                wi = min(1e20, wi);
-                if (wi > invTolerance) {
-                    wi = sqrt(wi);
-                    r += s.irr.r * wi;
-                    g += s.irr.g * wi;
-                    b += s.irr.b * wi;
-                    hasIrr = true;
-                    weight += wi;
-                }
+        Fixed.point(pos, pt);
+        Fixed.vector(norm, vec);
+
+        for (int i = 0; i < freeSample; i += 10) {
+            int wi = weight2(i, pt, vec);
+            if (wi > invTolerance) {
+                wi = (int) sqrt(wi << DENOM_BITS);
+                r += mul(vals[i + 7], wi);
+                g += mul(vals[i + 8], wi);
+                b += mul(vals[i + 9], wi);
+                hasIrr = true;
+                weight += wi;
             }
-        } finally {
-            readLock.unlock();
         }
 
         if (!hasIrr) {
-            return null;
+            return false;
         }
 
-        return new Colour(r / weight, g / weight, b / weight);
+        col.c(r, g, b);
+        col.multiply(1.0 / weight);
+
+        return true;
     }
 
-    @AllArgsConstructor
-    @Getter
-    @ToString
-    private class Sample {
-        final Point3D pos;
-        final Vector3D norm;
-        final double r0;
-        final double r;
-        final Colour irr;
+    public int weight2(int idx, Point3Di xPos, Vector3Di xNorm) {
+        int vx = vals[idx] - xPos.x;
+        int vy = vals[idx + 1] - xPos.y;
+        int vz = vals[idx + 2] - xPos.z;
 
-        public double weight2(Point3D xPos, Vector3D xNorm) {
-            double vx = pos.x - xPos.x;
-            double vy = pos.y - xPos.y;
-            double vz = pos.z - xPos.z;
-
-            if (abs(vx) < r && abs(vy) < r && abs(vz) < r) {
-                double a = xNorm.dot(norm);
-                double d2 = vx * vx + vy * vy + vz * vz;
-                double s1 = d2 / (r0 * r0);
-                double s2 = 1.0 - a;
-                double sq12 = sqrt(d2 * (1.0 - a) / (r0 * r0));
-                return 1.0 / (s1 + 2 * sq12 + s2);
-            } else {
-                return 0;
+        int r0 = vals[6];
+        int r = mul(r0, tolerance);
+        if (abs(vx) < r && abs(vy) < r && abs(vz) < r) {
+            int a = dot(xNorm.x, vals[idx + 3], xNorm.y, vals[idx + 4], xNorm.z, vals[idx + 5]);
+            int d2 = dot(vx, vx, vy, vy, vz, vz);
+            int s1 = (d2 << Fixed.DENOM_BITS) / mul(r0, r0);
+            int s2 = DENOM - a;
+            int sq12 = (int) sqrt(((d2 * (DENOM - a)) << DENOM_BITS) / (r0 * r0));
+            int dd = s1 + 2 * sq12 + s2;
+            if (dd == 0) {
+                return DENOM * DENOM;
             }
+            return (DENOM * DENOM) / dd;
+        } else {
+            return 0;
         }
     }
 }

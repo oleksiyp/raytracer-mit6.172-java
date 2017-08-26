@@ -13,33 +13,53 @@ import static java.lang.Math.min;
 @ToString
 @EqualsAndHashCode
 public class Colour {
-    final double r, g, b;
+    double r, g, b;
 
-    public Colour clamp() {
-        return new Colour(min(1.0, r), min(1.0, g), min(1.0, b));
+    public void clamp() {
+        r = min(1.0, r);
+        g = min(1.0, g);
+        b = min(1.0, b);
     }
 
     public double maxComponent() {
         return max(r, max(g, b));
     }
 
-    public Colour multiply(Colour c) {
-        return new Colour(r * c.r,
-                g * c.g,
-                b * c.b);
+    public void multiply(Colour c) {
+        r *= c.r;
+        g *= c.g;
+        b *= c.b;
     }
 
-    public Colour add(Colour c) {
-        return new Colour(r + c.r,
-                g + c.g,
-                b + c.b);
+    public void add(Colour c) {
+        r += c.r;
+        g += c.g;
+        b += c.b;
     }
 
-    public Colour divide(double s) {
-        return new Colour(r / s, g / s, b / s);
+    public void multiply(double s) {
+        r *= s;
+        g *= s;
+        b *= s;
     }
 
-    public Colour multiply(double s) {
-        return new Colour(r * s, g * s, b * s);
+    public static Colour black() {
+        return new Colour(0, 0, 0);
+    }
+
+    public void assign(Colour col) {
+        r = col.r;
+        g = col.g;
+        b = col.b;
+    }
+
+    public void c(double r, double g, double b) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+    }
+
+    public Colour copy() {
+        return new Colour(r, g, b);
     }
 }

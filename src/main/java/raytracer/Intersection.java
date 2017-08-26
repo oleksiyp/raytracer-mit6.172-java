@@ -5,14 +5,17 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
+import static raytracer.Point3D.origin;
+import static raytracer.Vector3D.zero;
+
 @AllArgsConstructor
 @Getter
 @ToString
 @EqualsAndHashCode
 public class Intersection {
     boolean set;
-    Point3D point;
-    Vector3D normal;
+    Point3D point = origin();
+    Vector3D normal = zero();
     double tValue;
     Material mat;
 
@@ -30,14 +33,19 @@ public class Intersection {
                     double t,
                     Material mat) {
         this.set = true;
-        this.point = point;
-        this.normal = normal;
+        this.point.assign(point);
+        this.normal.assign(normal);
         this.tValue = t;
         this.mat = mat;
     }
 
     public void transformBack(Matrix4D modelToWorld) {
-        point = point.transform(modelToWorld);
-        normal = normal.transform(modelToWorld);
+        point.transform(modelToWorld);
+        normal.transform(modelToWorld);
+    }
+
+    public void clear() {
+        set = false;
+        tValue = Double.MAX_VALUE;
     }
 }

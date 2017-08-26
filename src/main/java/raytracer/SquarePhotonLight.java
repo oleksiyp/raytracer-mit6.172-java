@@ -4,20 +4,22 @@ import lombok.Getter;
 import lombok.ToString;
 
 import static java.lang.Math.*;
+import static raytracer.Colour.black;
+import static raytracer.Point3D.origin;
+import static raytracer.Vector3D.zero;
 
 @Getter
 @ToString
 public class SquarePhotonLight extends Square implements Light {
+    private final static int STACK_DEPTH = 30;
     final Colour colour;
+
     final LightOptions lightOpts;
-
-    BalancedPhotonMap bbmap;
-    BalancedPhotonMap ccmap;
-
-    ThreadLocal<BalancedPhotonMap> bmap;
-    ThreadLocal<BalancedPhotonMap> cmap;
+    BalancedPhotonMap bmap;
+    BalancedPhotonMap cmap;
     IrradianceCache icache;
-    ThreadLocal<Random> rnd;
+
+    Random rnd;
 
     public SquarePhotonLight(
             Colour colour,
@@ -28,71 +30,35 @@ public class SquarePhotonLight extends Square implements Light {
         this.lightOpts = lightOpts;
     }
 
+
     @Override
-    public void init(Raytracer raytracer) {
+    public void init(Raytracer raytracer, boolean copy) {
         icache = new IrradianceCache(
-                        lightOpts.irradianceCacheTolerance,
-                        lightOpts.irradianceCacheSpacing);
+                lightOpts.irradianceCacheTolerance,
+                lightOpts.irradianceCacheSpacing);
 
-        bmap = ThreadLocal.withInitial(() -> bbmap.copy());
-        cmap = ThreadLocal.withInitial(() -> ccmap.copy());
-
-        rnd = ThreadLocal.withInitial(Random::new);
+        rnd = new Random();
 
         tracePhotonMap(lightOpts.numPhotons, lightOpts.numCausticPhotons, raytracer);
     }
 
-    public void shade(Ray3D ray, Raytracer raytracer, boolean getDirectly) {
-        Material mat = ray.intersection.mat;
-        if (mat.isLight) {
-            ray.setColour(mat.diffuse);
-            return;
-        }
+    Point3D tpmPt = origin();
+    Vector3D tpmVec = zero();
+    Vector3D tpmNorm = zero();
+    Colour tpmCol = black();
 
-        if (getDirectly) {
-            Vector3D normal = ray.intersection.normal;
-            normal = normal.normalize();
-
-            Colour irr = bmap.get().irradianceEstimate(
-                    ray.intersection.point,
-                    normal,
-                    lightOpts.indirectMaxDistance,
-                    lightOpts.indirectMaxPhotons);
-
-            if (irr == null) {
-                irr = ray.colour;
-            }
-
-            ray.setColour(irr.multiply(mat.diffuse));
-            return;
-        }
-
-        if (mat.isDiffuse) {
-            if (lightOpts.nGlobalIlluminationN > 0 && lightOpts.nGlobalIlluminationM > 0) {
-                globalIllumination(ray, raytracer);
-            }
-            if (lightOpts.caustics) {
-                causticsIllumination(ray);
-            }
-        }
-
-        if (lightOpts.directIllumination) {
-            directIllumination(ray, raytracer);
-        }
-
-    }
-
+    Ray3D ray = new Ray3D();
     private void tracePhotonMap(int num, int causticsNum, Raytracer raytracer) {
         PhotonMap map = new PhotonMap(num * 4);
 
         int i = 0;
         while (i < num) {
-            // Calculate the start pos and direction of the photon
-            Point3D p = new Point3D(rnd.get().random2() * 16, 49.99, rnd.get().random2() * 16);
-            Vector3D v = new Vector3D(0, -1, 0);
-            v = getRandLambertianDir(v);
-            Ray3D ray = new Ray3D(p, v);
-            ray.colour = colour;
+            // Calculate the start point and direction of the photon
+            tpmPt.p(rnd.random2() * 16, 49.99, rnd.random2() * 16);
+            tpmVec.v(0, -1, 0);
+            getRandLambertianDir(tpmVec);
+            ray.set(tpmPt, tpmVec);
+            ray.setColour(colour);
 
             int count = 0;
             while (ray.colour.maxComponent() > 0.1 && count++ < 100) {
@@ -104,57 +70,68 @@ public class SquarePhotonLight extends Square implements Light {
                     break;
                 }
 
-                Vector3D dir_norm = ray.dir;
-                dir_norm = dir_norm.normalize();
+                ray.dir.normalize();
                 if (ints.mat.isDiffuse) {
                     map.storePhoton(
                             ray.colour,
                             ints.point,
-                            dir_norm);
+                            ray.dir);
                 }
 
-                double ran = rnd.get().random1();
+                double ran = rnd.random1();
 
-                Colour c = ray.colour.multiply(ints.mat.diffuse);
-                double P = c.maxComponent() / ray.colour.maxComponent();
+                tpmCol.assign(ray.colour);
+                tpmCol.multiply(ints.mat.diffuse);
+                double P = tpmCol.maxComponent() / ray.colour.maxComponent();
                 if (ran < P) {
                     // Diffuse reflection
-                    v = getRandLambertianDir(ints.normal);
+                    tpmVec.assign(ints.normal);
+                    getRandLambertianDir(tpmVec);
                 } else {
                     ran -= P;
-                    c = ray.colour.multiply(ints.mat.specular);
-                    P = c.maxComponent() / ray.colour.maxComponent();
+                    tpmCol.assign(ray.colour);
+                    tpmCol.multiply(ints.mat.specular);
+                    P = tpmCol.maxComponent() / ray.colour.maxComponent();
                     if (ran < P) {
                         // Specular reflection
-                        v = ray.dir.subtract(
-                                ints.normal.multiply(2 * ray.dir.dot(ints.normal)));
+                        tpmVec.assign(ints.normal);
+                        tpmVec.multiply(2 * ray.dir.dot(ints.normal));
+                        tpmVec.subtract(ray.dir);
+                        tpmVec.negate();
                     } else {
                         ran -= P;
-                        c = ray.colour.multiply(ints.mat.refractive);
-                        P = c.maxComponent() / ray.colour.maxComponent();
+                        tpmCol.assign(ray.colour);
+                        tpmCol.multiply(ints.mat.refractive);
+                        P = tpmCol.maxComponent() / ray.colour.maxComponent();
                         if (ran < P) {
                             // Refraction
-                            double n;
 
-                            if (ray.dir.dot(ints.normal) < 0) {
-                                n = 1 / ints.mat.refractionIndex;
+                            double n;
+                            if (ray.dir.dot(tpmNorm) < 0) {
+                                n = 1.0 / ints.mat.refractionIndex;
                             } else {
-                                ints.normal = ints.normal.negate();
+                                ints.normal.negate();
                                 n = ints.mat.refractionIndex;
                             }
 
-                            double cosI = ints.normal.dot(ray.dir);
+                            tpmNorm.assign(ints.normal);
+
+                            double cosI = tpmNorm.dot(ray.dir);
                             double sinT2 = n * n * (1.0 - cosI * cosI);
 
                             if (sinT2 < 1.0) {
-                                Vector3D lhs = ray.dir.multiply(n);
-                                Vector3D rhs = ints.normal.multiply(n * cosI + sqrt(1.0 - sinT2));
-                                v = lhs.subtract(rhs);
+                                tpmVec.assign(ray.dir);
+                                tpmVec.multiply(n);
+                                tpmNorm.multiply(n * cosI + sqrt(1.0 - sinT2));
+                                tpmVec.subtract(ints.normal);
                             } else {
                                 // Total internal reflection
-                                Vector3D rhs = ints.normal.multiply(2 * ray.dir.dot(ints.normal));
-                                v = ray.dir.subtract(rhs);
+                                tpmVec.assign(ray.dir);
+                                tpmNorm.multiply(2 * ray.dir.dot(ints.normal));
+                                tpmVec.subtract(ints.normal);
                             }
+
+
                         } else {
                             // Absorption
                             break;
@@ -162,14 +139,15 @@ public class SquarePhotonLight extends Square implements Light {
 
                     }
                 }
-                ray = new Ray3D(ints.point, v);
-                ray.setColour(c.divide(P));
+                ray.set(ints.point, tpmVec);
+                tpmCol.multiply( 1 / P);
+                ray.setColour(tpmCol);
             }
             i++;
         }
         map.scalePhotonPower(1.0 / i);
         System.out.println("bmap");
-        bbmap = map.balance();
+        bmap = map.balance();
 
         // Caustics
         map = new PhotonMap(causticsNum);
@@ -177,19 +155,20 @@ public class SquarePhotonLight extends Square implements Light {
         int emitted = 0;
         i = 0;
 
+        Point3D p = origin();
+
         while (i < causticsNum) {
-            // Calculate the start pos and direction of the photon
-            Point3D p;
+            // Calculate the start point and direction of the photon
 
             if (lightOpts.nSoftShadows > 1) {
-                p = new Point3D(rnd.get().random2() * 18, 49.99, rnd.get().random2() * 18);
+                p.p(rnd.random2() * 18, 49.99, rnd.random2() * 18);
             } else {
-                p = new Point3D(0, 49.99, 0);
+                p.p(0, 49.99, 0);
             }
-            Vector3D v = new Vector3D(0, -1, 0);
-            v = getRandLambertianDir(v);
-            Ray3D ray = new Ray3D(p, v);
-            ray.colour = colour;
+            tpmVec.v(0, -1, 0);
+            getRandLambertianDir(tpmVec);
+            ray.set(p, tpmVec);
+            ray.setColour(colour);
             emitted++;
 
             raytracer.traverseEntireScene(ray, true);
@@ -202,42 +181,46 @@ public class SquarePhotonLight extends Square implements Light {
                         break;
                     }
 
-                    Vector3D dirNorm = ray.dir;
-                    dirNorm = dirNorm.normalize();
+                    tpmVec.assign(ray.dir);
+                    tpmVec.normalize();
 
                     if (ray.intersection.mat.isDiffuse) {
                         map.storePhoton(
                                 ray.colour,
                                 ray.intersection.point,
-                                dirNorm);
+                                tpmVec);
 
                         i++;
                         break;
                     }
 
-                    double ran = rnd.get().random1();
-                    Colour c = ray.colour.multiply(ray.intersection.mat.specular);
-                    double P = c.maxComponent() / ray.colour.maxComponent();
+                    double ran = rnd.random1();
+                    tpmCol.assign(ray.colour);
+                    tpmCol.multiply(ray.intersection.mat.specular);
+                    double P = tpmCol.maxComponent() / ray.colour.maxComponent();
                     Intersection ints = ray.intersection;
 
                     // Specular reflection
                     if (ran < P) {
-                        ray.intersection.normal = ray.intersection.normal.negate();
+                        ray.intersection.normal.negate();
 
-                        v = ray.dir.subtract(
-                                ints.normal.multiply(2 * ray.dir.dot(ints.normal)));
+                        tpmVec.assign(ints.normal);
+                        tpmVec.multiply(2 * ray.dir.dot(ints.normal));
+                        tpmVec.subtract(ray.dir);
+                        tpmVec.negate();
                     } else {
                         ran -= P;
-                        c = ray.colour.multiply(ints.mat.refractive);
-                        P = c.maxComponent() / ray.colour.maxComponent();
+                        tpmCol.assign(ray.colour);
+                        tpmCol.multiply(ints.mat.refractive);
+                        P = tpmCol.maxComponent() / ray.colour.maxComponent();
                         if (ran < P) {
                             // Refraction
+                            tpmNorm.assign(ints.normal);
                             double n;
-
-                            if (ray.dir.dot(ints.normal) < 0) {
-                                n = 1 / ints.mat.refractionIndex;
+                            if (ray.dir.dot(tpmNorm) < 0) {
+                                n = 1.0 / ints.mat.refractionIndex;
                             } else {
-                                ints.normal = ints.normal.negate();
+                                tpmNorm.negate();
                                 n = ints.mat.refractionIndex;
                             }
 
@@ -245,14 +228,17 @@ public class SquarePhotonLight extends Square implements Light {
                             double sinT2 = n * n * (1.0 - cosI * cosI);
 
                             if (sinT2 < 1.0) {
-                                Vector3D lhs = ray.dir.multiply(n);
-                                Vector3D rhs = ints.normal.multiply(n * cosI + sqrt(1.0 - sinT2));
-                                v = lhs.subtract(rhs);
+                                tpmVec.assign(ray.dir);
+                                tpmVec.multiply(n);
+                                tpmNorm.multiply(n * cosI + sqrt(1.0 - sinT2));
+                                tpmVec.subtract(ints.normal);
                             } else {
                                 // Total internal reflection
-                                Vector3D rhs = ints.normal.multiply(2 * ray.dir.dot(ints.normal));
-                                v = ray.dir.subtract(rhs);
+                                tpmVec.assign(ray.dir);
+                                tpmNorm.multiply(2 * ray.dir.dot(tpmNorm));
+                                tpmVec.subtract(ints.normal);
                             }
+
                         } else {
                             // Absorption
                             i++;
@@ -260,127 +246,40 @@ public class SquarePhotonLight extends Square implements Light {
                         }
                     }
 
-                    ray = new Ray3D(ints.point, v);
-                    ray.setColour(c.divide(P));
+                    ray.set(ints.point, tpmVec);
+                    tpmCol.multiply(1 / P);
+                    ray.setColour(tpmCol);
                 }
 
             }
         }
         map.scalePhotonPower(1.0 / emitted);
         System.out.println("cmap");
-        ccmap = map.balance();
+        cmap = map.balance();
     }
 
-    private Vector3D getRandLambertianDir(Vector3D normal) {
-        Vector3D v;
 
-        double phi = 2 * PI * rnd.get().random1();
+
+    private void getRandLambertianDir(Vector3D vec) {
+        double phi = 2 * PI * rnd.random1();
         double sinPhi = sin(phi);
         double cosPhi = cos(phi);
 
-        double cosTheta = sqrt(rnd.get().random1());
+        double cosTheta = sqrt(rnd.random1());
         double theta = FastMath.acos(cosTheta);
         double sinTheta = sin(theta);
 
-        Matrix4D basis = initTransformMatrix(normal);
+        initTransformMatrix(vec, itmMat);
 
-        v = new Vector3D(cosPhi * sinTheta, sinPhi * sinTheta, cosTheta);
-        v = v.transform(basis);
-        v = v.normalize();
-
-        return v;
+        vec.v(cosPhi * sinTheta, sinPhi * sinTheta, cosTheta);
+        vec.transform(itmMat);
+        vec.normalize();
     }
 
+    Vector3D itmU = zero(), itmV = zero();
+    Matrix4D itmMat = new Matrix4D();
 
-    private void causticsIllumination(Ray3D ray) {
-        // Caustics
-        Colour caus_col;
-
-        Vector3D normal = ray.intersection.normal;
-        normal.normalize();
-
-        if (lightOpts.nSoftShadows > 1) {
-            caus_col = cmap.get().irradianceEstimate(
-                    ray.intersection.point,
-                    normal,
-                    4,
-                    1000);
-        } else {
-            caus_col = cmap.get().irradianceEstimate(
-                    ray.intersection.point,
-                    normal,
-                    1.1,
-                    1000);
-        }
-        if (caus_col == null) {
-            caus_col = new Colour(0, 0, 0);
-        }
-        double cosTheta12 = sqrt(-(ray.dir.dot(ray.intersection.normal)));
-        caus_col = caus_col.multiply(ray.intersection.mat.diffuse);
-
-        ray.setColour(ray.colour.add(caus_col.multiply(cosTheta12)));
-    }
-
-    private void globalIllumination(Ray3D ray, Raytracer raytracer) {
-        // If we're not already in the irradiance cache, compute the irradiance via
-        // monte carlo methods.
-        Intersection ints = ray.intersection;
-
-        Colour irr = icache.getIrradiance(ints.point, ints.normal);
-        if (irr != null) {
-            ray.setColour(irr.multiply(ints.mat.diffuse));
-            return;
-        }
-
-        ray.setColour(new Colour(0, 0, 0));
-
-        int N = lightOpts.nGlobalIlluminationN;
-        int M = lightOpts.nGlobalIlluminationM;
-        int hits = 0;
-        double r0 = 0;
-
-        Matrix4D basis = initTransformMatrix(ints.normal);
-
-        // Stratification
-        for (int i = 0; i < N; i++) {
-            double phi = 2 * PI * ((double) i + rnd.get().random1()) / N;
-            double sinPhi = sin(phi);
-            double cosPhi = cos(phi);
-
-            for (int j = 0; j < M; j++) {
-                double cosTheta = sqrt(1 - (((double) j + rnd.get().random1()) / M));
-                double theta = FastMath.acos(cosTheta);
-                double sinTheta = sin(theta);
-
-                Vector3D v = new Vector3D(cosPhi * sinTheta, sinPhi * sinTheta, cosTheta);
-                v = v.transform(basis);
-
-                Ray3D newRay = new Ray3D(ints.point, v);
-                raytracer.traverseEntireScene(newRay, true);
-
-                if (newRay.intersection.isSet()) {
-                    raytracer.computeShading(newRay, 3, true);
-                    ray.setColour(ray.colour.add(newRay.colour));
-
-                    r0 += 1 / newRay.intersection.tValue;
-                    hits++;
-                }
-            }
-        }
-
-        ray.colour = ray.colour.multiply(1.0 / hits);
-        r0 = 1 / r0;
-
-        if (hits == N * M) {
-            icache.insert(ints.point, ints.normal, r0, ray.colour);
-        }
-
-        ray.setColour(ray.colour.multiply(ints.mat.diffuse));
-
-    }
-
-    private Matrix4D initTransformMatrix(Vector3D w) {
-        Vector3D u, v;
+    private void initTransformMatrix(Vector3D w, Matrix4D mat) {
         double vx, vy, vz;
 
         if ((abs(w.x) < abs(w.y)) && (abs(w.x) < abs(w.z))) {
@@ -396,87 +295,257 @@ public class SquarePhotonLight extends Square implements Light {
             vy = -w.x;
             vz = 0;
         }
-        v = new Vector3D(vx, vy, vz);
-        v = v.normalize();
-        u = v.cross(w);
 
-        Matrix4D mat = new Matrix4D();
-        mat.setElement(0, 0, u.x);
-        mat.setElement(1, 0, u.y);
-        mat.setElement(2, 0, u.z);
-        mat.setElement(0, 1, v.x);
-        mat.setElement(1, 1, v.y);
-        mat.setElement(2, 1, v.z);
+        itmV.v(vx, vy, vz);
+        itmV.normalize();
+        itmU.assign(itmV);
+        itmU.cross(w);
+
+        mat.setElement(0, 0, itmU.x);
+        mat.setElement(1, 0, itmU.y);
+        mat.setElement(2, 0, itmU.z);
+        mat.setElement(3, 0, 0);
+        mat.setElement(0, 1, itmV.x);
+        mat.setElement(1, 1, itmV.y);
+        mat.setElement(2, 1, itmV.z);
+        mat.setElement(3, 1, 0);
         mat.setElement(0, 2, w.x);
         mat.setElement(1, 2, w.y);
         mat.setElement(2, 2, w.z);
-        return mat;
+        mat.setElement(3, 2, 0);
+        mat.setElement(0, 3, 0);
+        mat.setElement(1, 3, 0);
+        mat.setElement(2, 3, 0);
+        mat.setElement(3, 3, 0);
     }
 
-    private void directIllumination(Ray3D ray, Raytracer raytracer) {
-        // Direct illumination
-        int N = lightOpts.nSoftShadows;
 
-        Colour directCol = new Colour(0, 0, 0);
-        double dx = 1.0 / (N + 1);
-        double dz = 1.0 / (N + 1);
+    StackItem []stack = new StackItem[STACK_DEPTH];
+    int sp = 0;
+    {
+        for (int i = 0; i < stack.length; i++) {
+            stack[i] = new StackItem();
+        }
+    }
 
-        // Loop for soft shadows
-        for (int i = 1; i <= N; i++) {
-            double x;
-            if (N > 1) {
-                double rand = rnd.get().random1();
-                double dxRand = rand - floor(rand);
-                x = ((i + dxRand) * dx) * 30 - 15;
-            } else {
-                x = i * dx * 30 - 15;
+    @Override
+    public void shade(Ray3D ray, Raytracer raytracer, boolean getDirectly) {
+        StackItem stackItem = stack[sp++];
+        stackItem.shade(ray, raytracer, getDirectly);
+        sp--;
+    }
+
+    class StackItem {
+
+        Colour col = black();
+        Colour col2 = black();
+
+        public void shade(Ray3D ray, Raytracer raytracer, boolean getDirectly) {
+            Material mat = ray.intersection.mat;
+            if (mat.isLight) {
+                ray.setColour(mat.diffuse);
+                return;
             }
 
-            for (int j = 1; j <= N; j++) {
-                double z;
-                if (N > 1) {
-                    double rand = rnd.get().random1();
-                    double dzRand = rand - floor(rand);
-                    z = (((double) j + dzRand) * dz) * 30 - 15;
-                } else {
-                    z = i * dz * 30 - 15;
+            if (getDirectly) {
+                ray.intersection.normal.normalize();
+
+                if (!bmap.irradianceEstimate(
+                        ray.intersection.point,
+                        ray.intersection.normal,
+                        lightOpts.indirectMaxDistance,
+                        lightOpts.indirectMaxPhotons,
+                        col)) {
+                    col.assign(ray.colour);
                 }
 
-                Vector3D L = new Point3D(x, 50, z)
-                        .subtract(ray.intersection.point);
-                double l = sqrt(L.x * L.x + L.z * L.z + L.y * L.y);
-                L = L.normalize();
-                Vector3D LN = new Vector3D(0, -1, 0);
+                col.multiply(mat.diffuse);
+                ray.setColour(col);
+                return;
+            }
 
-                double scale = -LN.dot(L);
-                scale = scale < 0 ? 0 : scale;
-                scale /= l * l * 1.5 * PI;
+            if (mat.isDiffuse) {
+                if (lightOpts.nGlobalIlluminationN > 0 && lightOpts.nGlobalIlluminationM > 0) {
+                    globalIllumination(ray, raytracer);
+                }
+                if (lightOpts.caustics) {
+                    causticsIllumination(ray);
+                }
+            }
 
-                Ray3D newRay = new Ray3D(ray.intersection.point, L);
-                raytracer.traverseEntireScene(newRay, false);
+            if (lightOpts.directIllumination) {
+                directIllumination(ray, raytracer);
+            }
 
-                if (newRay.intersection.isSet() && newRay.intersection.mat.isLight) {
-                    Vector3D R = ray.intersection.normal.multiply(2.0 * ray.intersection.normal.dot(L)).subtract(L);
+        }
 
-                    double NdotL = L.dot(ray.intersection.normal);
-                    double RdotV = -(R.dot(ray.dir));
-                    NdotL = NdotL < 0 ? 0 : NdotL;
-                    RdotV = RdotV < 0 ? 0 : RdotV;
-                    if (ray.dir.dot(ray.intersection.normal) > 0) {
-                        RdotV = 0;
+        private void causticsIllumination(Ray3D ray) {
+            // Caustics
+            Vector3D normal = ray.intersection.normal;
+            normal.normalize();
+
+            boolean ret;
+            if (lightOpts.nSoftShadows > 1) {
+                ret = cmap.irradianceEstimate(
+                        ray.intersection.point,
+                        normal,
+                        4,
+                        1000, col);
+            } else {
+                ret = cmap.irradianceEstimate(
+                        ray.intersection.point,
+                        normal,
+                        1.1,
+                        1000, col);
+            }
+            if (!ret) {
+                col.c(0, 0, 0);
+            }
+            double cosTheta12 = sqrt(-(ray.dir.dot(ray.intersection.normal)));
+            col.multiply(ray.intersection.mat.diffuse);
+            col.multiply(cosTheta12);
+            ray.addColour(col);
+        }
+
+        Vector3D giVec = zero();
+
+        Ray3D newRay = new Ray3D();
+        Matrix4D basis = new Matrix4D();
+
+        private void globalIllumination(Ray3D ray, Raytracer raytracer) {
+            // If we're not already in the irradiance cache, compute the irradiance via
+            // monte carlo methods.
+            Intersection ints = ray.intersection;
+
+            if (icache.getIrradiance(ints.point, ints.normal, col)) {
+                col.multiply(ints.mat.diffuse);
+                ray.setColour(col);
+                return;
+            }
+            ray.setColour(0, 0, 0);
+
+            int N = lightOpts.nGlobalIlluminationN;
+            int M = lightOpts.nGlobalIlluminationM;
+            int hits = 0;
+            double r0 = 0;
+
+            initTransformMatrix(ints.normal, basis);
+
+            // Stratification
+            for (int i = 0; i < N; i++) {
+                double phi = 2 * PI * ((double) i + rnd.random1()) / N;
+                double sinPhi = sin(phi);
+                double cosPhi = cos(phi);
+
+                for (int j = 0; j < M; j++) {
+                    double cosTheta = sqrt(1 - (((double) j + rnd.random1()) / M));
+                    double theta = FastMath.acos(cosTheta);
+                    double sinTheta = sin(theta);
+
+                    giVec.v(cosPhi * sinTheta, sinPhi * sinTheta, cosTheta);
+                    giVec.transform(basis);
+
+                    newRay.set(ints.point, giVec);
+                    raytracer.traverseEntireScene(newRay, true);
+
+                    if (newRay.intersection.isSet()) {
+                        raytracer.computeShading(newRay, 3, true);
+                        ray.addColour(newRay.colour);
+
+                        r0 += 1 / newRay.intersection.tValue;
+                        hits++;
+                    }
+                }
+            }
+
+            ray.colour.multiply(1.0 / hits);
+            r0 = 1 / r0;
+
+            if (hits == N * M) {
+                icache.insert(ints.point, ints.normal, r0, ray.colour);
+            }
+
+            ray.colour.multiply(ints.mat.diffuse);
+        }
+
+        Point3D diPt = origin();
+        Vector3D diVec = zero();
+        Vector3D diNorm = zero();
+        Colour directCol = black();
+
+        private void directIllumination(Ray3D ray, Raytracer raytracer) {
+            // Direct illumination
+            int N = lightOpts.nSoftShadows;
+
+            double dx = 1.0 / (N + 1);
+            double dz = 1.0 / (N + 1);
+
+            directCol.c(0, 0, 0);
+
+            // Loop for soft shadows
+            for (int i = 1; i <= N; i++) {
+                double x;
+                if (N > 1) {
+                    double rand = rnd.random1();
+                    double dxRand = rand - floor(rand);
+                    x = ((i + dxRand) * dx) * 30 - 15;
+                } else {
+                    x = i * dx * 30 - 15;
+                }
+
+                for (int j = 1; j <= N; j++) {
+                    double z;
+                    if (N > 1) {
+                        double rand = rnd.random1();
+                        double dzRand = rand - floor(rand);
+                        z = (((double) j + dzRand) * dz) * 30 - 15;
+                    } else {
+                        z = i * dz * 30 - 15;
                     }
 
-                    Material mat = ray.intersection.mat;
+                    diPt.p(x, 50, z);
+                    diPt.subtract(ray.intersection.point, diVec);
+                    double l = diVec.mag();
+                    diVec.multiply(1 / l);
+                    diNorm.v(0, -1, 0);
 
-                    Colour diffuse = mat.diffuse.multiply(NdotL);
-                    double specPow = pow(RdotV, mat.specularExp);
-                    Colour specular = mat.specular.multiply(specPow);
-                    Colour col = colour.multiply(scale).multiply(diffuse.add(specular));
-                    directCol = directCol.add(col);
+                    double scale = -diNorm.dot(diVec);
+                    scale = scale < 0 ? 0 : scale;
+                    scale /= l * l * 1.5 * PI;
+
+                    newRay.set(ray.intersection.point, diVec);
+                    raytracer.traverseEntireScene(newRay, false);
+
+                    if (newRay.intersection.isSet() && newRay.intersection.mat.isLight) {
+                        diNorm.assign(ray.intersection.normal);
+                        diNorm.multiply(2.0 * ray.intersection.normal.dot(diVec));
+                        diNorm.subtract(diVec);
+
+                        double NdotL = diVec.dot(ray.intersection.normal);
+                        double RdotV = -(diNorm.dot(ray.dir));
+                        NdotL = NdotL < 0 ? 0 : NdotL;
+                        RdotV = RdotV < 0 ? 0 : RdotV;
+                        if (ray.dir.dot(ray.intersection.normal) > 0) {
+                            RdotV = 0;
+                        }
+
+                        Material mat = ray.intersection.mat;
+
+                        col.assign(mat.diffuse);
+                        col.multiply(NdotL);
+                        double specPow = pow(RdotV, mat.specularExp);
+                        col2.assign(mat.specular);
+                        col2.multiply(specPow);
+                        col.add(col2);
+                        col2.assign(colour);
+                        col2.multiply(scale);
+                        col2.multiply(col);
+                        directCol.add(col2);
+                    }
                 }
             }
+            directCol.multiply(1.0 / (N * N));
+            ray.addColour(directCol);
         }
-        directCol = directCol.divide(N * N);
-        ray.setColour(ray.colour.add(directCol));
     }
 }

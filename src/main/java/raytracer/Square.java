@@ -1,20 +1,36 @@
 package raytracer;
 
-import lombok.AllArgsConstructor;
+import static raytracer.Point3D.origin;
+import static raytracer.Vector3D.zero;
 
-@AllArgsConstructor
 public class Square extends SceneObject {
+    public static final Vector3D YM = new Vector3D(0, -1, 0);
     final Material material;
 
+    public Square(Material material) {
+        this.material = material;
+    }
+
+    Point3D origin = origin();
+    Vector3D dir = zero();
+    Point3D sqPt = origin();
+    Vector3D sqVec = zero();
+
     public boolean intersect(Ray3D ray, Matrix4D worldToModel, Matrix4D modelToWorld) {
-        Point3D origin = ray.origin.transform(worldToModel);
-        Vector3D dir = ray.dir.transform(worldToModel);
+        origin.assign(ray.getOrigin());
+        dir.assign(ray.getDir());
+
+        origin.transform(worldToModel);
+        dir.transform(worldToModel);
 
         double lambda = (49.99 - origin.y) / dir.y;
         if (ray.lessDistant(lambda)) {
-            Point3D p = origin.add(dir.multiply(lambda));
-            if (p.x <= 16 && p.x >= -16 && p.z <= 16 && p.z >= -16) {
-                ray.setIntersection(p, new Vector3D(0, -1, 0), lambda, material);
+            sqPt.assign(origin);
+            sqVec.assign(dir);
+            sqVec.multiply(lambda);
+            sqPt.add(sqVec);
+            if (sqPt.x <= 16 && sqPt.x >= -16 && sqPt.z <= 16 && sqPt.z >= -16) {
+                ray.setIntersection(sqPt, YM, lambda, material);
                 ray.intersection.transformBack(modelToWorld);
                 return true;
             }

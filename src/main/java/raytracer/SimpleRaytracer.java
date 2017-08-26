@@ -3,41 +3,20 @@ package raytracer;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.awt.image.BufferedImage.TYPE_INT_RGB;
-import static java.lang.Math.sqrt;
-import static java.lang.Runtime.getRuntime;
-import static java.lang.System.currentTimeMillis;
-import static java.util.concurrent.Executors.newFixedThreadPool;
 import static raytracer.Matrix4D.identity;
-import static raytracer.Primitives.p;
-import static raytracer.Primitives.v;
-import static raytracer.StopWatch.swTotalN;
-import static raytracer.StopWatch.swTotalT;
-import static raytracer.StopWatch.swReset;
 
-public class SimpleRaytracer implements Scene, Raytracer, Renderer {
+public class SimpleRaytracer implements Scene, Renderer {
     final SceneNode root;
-
-    final Matrix4D modelToWorld;
-    final Matrix4D worldToModel;
-
     Camera camera;
-    RenderingOptions options;
-
     Matrix4D viewToWorld;
     PixBuf pixBuf;
 
-    private List<Light> lights;
 
     public SimpleRaytracer() {
         root = new SceneNode();
-
-        modelToWorld = identity();
-        worldToModel = identity();
-
-        lights = new ArrayList<Light>();
     }
 
     public SceneNode add(SceneObject sceneObject) {
@@ -49,66 +28,52 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
     }
 
     public void render(RenderingOptions options) {
-        this.options = options;
-
         int width = options.getWidth();
         int height = options.getHeight();
 
         pixBuf = new PixBuf(width, height);
         pixBuf.fill(options.getDefaultColour());
 
-        initObjects();
         initViewMatrix();
 
-        ExecutorService executor = newFixedThreadPool(getRuntime().availableProcessors());
-//        ExecutorService executor = newFixedThreadPool(1);
+        int concurrency = 1;//getRuntime().availableProcessors();
 
-        CountDownLatch latch = new CountDownLatch(height);
-        for (int j = 0; j < height; j++) {
-            double y = (49.5 - 99 * j / (double) (height));
-            int jj = j;
-            executor.execute(() -> {
-                long t = currentTimeMillis();
-                swReset();
-                for (int i = 0; i < width; i++) {
-                    double x = (99 * i / (double) (width) - 49.5);
-                    Vector3D dir = v(x, y, 100.1).normalize();
-                    Point3D origin = p(x, y, 0);
-
-                    origin = origin.transform(viewToWorld);
-                    dir = dir.transform(viewToWorld);
-
-                    Ray3D ray = new Ray3D(origin, dir);
-
-                    traverseEntireScene(ray, false);
-                    if (ray.getIntersection().isSet()) {
-                        computeShading(ray, 6, false);
-                        pixBuf.setPixel(i, jj, ray.getColour());
-                    }
-                }
-                long tt = currentTimeMillis();
-                double t1 = (tt - t) / 1e3;
-                double tf = swTotalT() / 1e9;
-                int n = swTotalN();
-                System.out.printf("%d %.3f %.3f %.1f%% %d%n", jj, t1, tf, tf / t1 * 100.0, n);
-
-                latch.countDown();
-            });
+        AtomicInteger j = new AtomicInteger(0);
+        List<Thread> threads = new ArrayList<>();
+        RaytracerTask firstTask = null;
+        for (int i = 0; i < concurrency; i++) {
+            RaytracerTask task = new RaytracerTask(j, pixBuf, viewToWorld, options);
+            if (i == 0) {
+                task.initObjects(root);
+                firstTask = task;
+            } else {
+                task.initFrom(firstTask);
+            }
+            Thread thread = new Thread(task);
+            threads.add(thread);
+            thread.start();
         }
+
         try {
-            latch.await();
-            executor.shutdown();
+            for (Thread t : threads) {
+                t.join();
+            }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
 
     private void initViewMatrix() {
-        Vector3D view = camera.getView().normalize();
+        Vector3D view = camera.getView().copy();
+        view.normalize();
+
         Vector3D up = camera.getUp();
-        up = up.subtract(view.multiply(up.dot(view)));
-        up = up.normalize();
-        Vector3D w = view.cross(up);
+        Vector3D viewL = view.copy();
+        viewL.multiply(up.dot(view));
+        up.subtract(viewL);
+        up.normalize();
+        Vector3D w = view.copy();
+        w.cross(up);
         Point3D eye = camera.getEye();
 
         viewToWorld = identity();
@@ -130,136 +95,6 @@ public class SimpleRaytracer implements Scene, Raytracer, Renderer {
         viewToWorld.setElement(2, 3, eye.z);
     }
 
-    private void initObjects() {
-        lights.clear();
-        initObjects(root);
-    }
-
-    private void initObjects(SceneNode node) {
-        if (node.sceneObject != null) {
-            node.sceneObject.init(this);
-        }
-
-        if (node.sceneObject instanceof Light) {
-            lights.add((Light) node.sceneObject);
-        }
-
-        modelToWorld.mulRight(node.getTransform());
-        worldToModel.mulLeft(node.getInvTransform());
-
-        node.modelToWorld = new Matrix4D(modelToWorld);
-        node.worldToModel = new Matrix4D(worldToModel);
-
-        for (SceneNode child : node.getChilds()) {
-            initObjects(child);
-        }
-
-        worldToModel.mulLeft(node.getTransform());
-        modelToWorld.mulRight(node.getInvTransform());
-    }
-
-    public void computeShading(Ray3D ray, int depth, boolean getDirectly) {
-        if (depth <= 0) {
-            ray.setColour(options.getDefaultColour());
-            return;
-        }
-
-        Intersection ints = ray.intersection;
-        Material mat = ints.mat;
-
-        ints.normal = ints.normal.normalize();
-
-        for (Light light : lights) {
-            light.shade(ray, this, getDirectly);
-        }
-
-        if (mat.isDiffuse) {
-            ray.clampColour();
-            return;
-        }
-
-        if (mat.refractive.maxComponent() > 1e-2) {
-            double n;
-            if (ray.dir.dot(ints.normal) < 0) {
-                n = 1.0 / mat.refractionIndex;
-            } else {
-                ints.normal = ints.normal.negate();
-                n = mat.refractionIndex;
-            }
-
-            double cosI = ints.normal.dot(ray.dir);
-            double sinT2 = n * n * (1.0 - cosI * cosI);
-
-            Vector3D T;
-            if (sinT2 < 1.0) {
-                Vector3D lhs = ray.dir.multiply(n);
-                Vector3D rhs = ints.normal
-                        .multiply(n * cosI + sqrt(1.0 - sinT2));
-
-                T = lhs.subtract(rhs);
-            } else {
-                // Total internal reflection
-                Vector3D rhs = ints.normal.multiply(2 * ray.dir.dot(ints.normal));
-                T = ray.dir.subtract(rhs);
-            }
-
-            Ray3D newRay = new Ray3D(ints.point, T);
-            traverseEntireScene(newRay, false);
-
-            if (newRay.intersection.isSet()) {
-                computeShading(newRay, depth - 1, getDirectly);
-            } else {
-                newRay.setColour(options.getDefaultColour());
-            }
-
-            ray.setColour(ray.colour
-                    .add(mat.refractive
-                            .multiply(newRay.getColour())));
-
-        }
-
-        if (ray.dir.dot(ints.normal) < 0) {
-            Vector3D R = ray.dir.subtract(
-                    ints.normal.multiply((2 * ray.dir.dot(ints.normal))));
-
-            Ray3D newRay = new Ray3D(ints.point, R);
-            traverseEntireScene(newRay, false);
-
-            if (newRay.intersection.isSet()) {
-                computeShading(newRay, depth - 1, getDirectly);
-            } else {
-                newRay.setColour(options.getDefaultColour());
-            }
-
-            ray.setColour(ray.colour
-                    .add(mat.specular
-                            .multiply(newRay.getColour())));
-        }
-
-        ray.clampColour();
-
-    }
-
-    public void traverseEntireScene(Ray3D ray, boolean casting) {
-        traverseScene(root, ray, casting);
-    }
-
-    private void traverseScene(SceneNode node, Ray3D ray, boolean casting) {
-        SceneObject sceneObj = node.getSceneObject();
-        if (sceneObj != null) {
-            if (casting) {
-                if (!(sceneObj instanceof Light)) {
-                    sceneObj.intersect(ray, node.worldToModel, node.modelToWorld);
-                }
-            } else {
-                sceneObj.intersect(ray, node.worldToModel, node.modelToWorld);
-            }
-        }
-
-        for (SceneNode child : node.getChilds()) {
-            traverseScene(child, ray, casting);
-        }
-    }
 
     public BufferedImage pixBufAsImage() {
         BufferedImage img = new BufferedImage(pixBuf.width, pixBuf.height, TYPE_INT_RGB);

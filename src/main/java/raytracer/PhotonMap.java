@@ -10,7 +10,6 @@ public class PhotonMap {
 
     double[] bbox_min;
     double[] bbox_max;
-    int half_stored_photons;
 
     public PhotonMap(int maxPhotons) {
         stored_photons = 0;
@@ -178,7 +177,7 @@ public class PhotonMap {
 
     public void scalePhotonPower(double scale) {
         for (int i = prev_scale; i <= stored_photons; i++) {
-            photons[i].power = photons[i].power.multiply(scale);
+            photons[i].power.multiply(scale);
         }
         prev_scale = stored_photons;
     }
@@ -194,7 +193,7 @@ public class PhotonMap {
         stored_photons++;
 
         for (int i = 0; i < 3; i++) {
-            photon.pos = pos;
+            photon.pos = pos.copy();
             if (photon.pos.coord(i) < bbox_min[i]) {
                 bbox_min[i] = photon.pos.coord(i);
             }
@@ -202,8 +201,8 @@ public class PhotonMap {
                 bbox_max[i] = photon.pos.coord(i);
             }
         }
-        photon.power = power;
-        photon.dir = dir;
+        photon.power = power.copy();
+        photon.dir = dir.copy();
         photons[stored_photons] = photon;
     }
 

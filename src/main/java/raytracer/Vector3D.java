@@ -12,48 +12,73 @@ import static java.lang.Math.sqrt;
 @Getter
 @EqualsAndHashCode
 public class Vector3D {
-    final double x, y, z;
+    public static final Vector3D ZERO = new Vector3D(0, 0, 0);
+    double x, y, z;
 
-    public Vector3D negate() {
-        return new Vector3D(-x, -y, -z);
+    public Vector3D() {
     }
 
-    public Vector3D normalize() {
+    public void assign(Vector3D v) {
+        x = v.x;
+        y = v.y;
+        z = v.z;
+    }
+
+    public void negate() {
+        x = -x;
+        y = -y;
+        z = -z;
+    }
+
+    public void normalize() {
         double l = mag();
-        return new Vector3D(x / l, y / l, z / l);
+        x /= l;
+        y /= l;
+        z /= l;
     }
 
     public double dot(Vector3D vec) {
         return x*vec.x + y*vec.y + z*vec.z;
     }
 
-    public Vector3D multiply(double s) {
-        return new Vector3D(x * s, y * s, z * s);
+    public void multiply(double s) {
+        x *= s;
+        y *= s;
+        z *= s;
     }
 
-    public Vector3D subtract(Vector3D vec) {
-        return new Vector3D(x - vec.x, y - vec.y, z - vec.z);
+    public void subtract(Vector3D vec) {
+        double xx = x - vec.x;
+        double yy = y - vec.y;
+        double zz = z - vec.z;
+
+        this.x = xx;
+        this.y = yy;
+        this.z = zz;
     }
 
-    public Vector3D cross(Vector3D vec) {
-        return new Vector3D(
-                y * vec.z - z * vec.y,
-                z * vec.x - x * vec.z,
-                x * vec.y - y * vec.x);
+    public void cross(Vector3D vec) {
+        double xx = y * vec.z - z * vec.y;
+        double yy = z * vec.x - x * vec.z;
+        double zz = x * vec.y - y * vec.x;
+
+        this.x = xx;
+        this.y = yy;
+        this.z = zz;
     }
 
-    public Vector3D transform(Matrix4D mat) {
+    public void transform(Matrix4D mat) {
         if (mat.ident) {
-            return this;
+            return;
         }
-        return new Vector3D(
-                x * mat.values[0][0] + y * mat.values[0][1] + z * mat.values[0][2],
-                x * mat.values[1][0] + y * mat.values[1][1] + z * mat.values[1][2],
-                x * mat.values[2][0] + y * mat.values[2][1] + z * mat.values[2][2]);
-    }
 
-    public Point3D toPoint() {
-        return new Point3D(x, y, z);
+        double xx = x * mat.values[0][0] + y * mat.values[0][1] + z * mat.values[0][2];
+        double yy = x * mat.values[1][0] + y * mat.values[1][1] + z * mat.values[1][2];
+        double zz = x * mat.values[2][0] + y * mat.values[2][1] + z * mat.values[2][2];
+
+        this.x = xx;
+        this.y = yy;
+        this.z = zz;
     }
 
     public double mag() {
@@ -64,7 +89,19 @@ public class Vector3D {
         return x * x + y * y + z * z;
     }
 
-    public Vector3Df toFloat() {
-        return new Vector3Df((float) x, (float) y, (float) z);
+    public Vector3D copy() {
+        Vector3D v = zero();
+        v.assign(this);
+        return v;
+    }
+
+    public static Vector3D zero() {
+        return new Vector3D(0 , 0 ,0);
+    }
+
+    public void v(double x, double y, double z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
     }
 }

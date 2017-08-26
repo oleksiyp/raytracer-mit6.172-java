@@ -25,7 +25,7 @@ public class SceneNode {
 
     public SceneNode(SceneNode parent, SceneObject sceneObject) {
         this.sceneObject = sceneObject;
-        childs = new ArrayList<SceneNode>();
+        childs = new ArrayList<>();
         if (parent != null) {
             parent.childs.add(this);
         }
@@ -40,6 +40,16 @@ public class SceneNode {
 
     public void translate(Vector3D offset) {
         transform.mulRight(translation(offset));
-        invTransform.mulLeft(translation(offset.negate()));
+        Vector3D negOffset = offset.copy();
+        negOffset.negate();
+        invTransform.mulLeft(translation(negOffset));
+    }
+
+    public SceneNode copy() {
+        return this;
+    }
+
+    public void inject(Raytracer raytracer) {
+
     }
 }

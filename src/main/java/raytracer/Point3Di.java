@@ -10,7 +10,7 @@ import lombok.ToString;
 @Getter
 @EqualsAndHashCode
 public class Point3Di {
-    final int x, y, z;
+    int x, y, z;
 
     public int coord(int plane) {
         if (plane == 0) return x;

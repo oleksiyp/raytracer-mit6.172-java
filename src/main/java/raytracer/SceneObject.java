@@ -1,8 +1,7 @@
 package raytracer;
 
 public abstract class SceneObject {
-
-    public void init(Raytracer raytracer) {
+    public void init(Raytracer raytracer, boolean copy) {
 
     }
 
