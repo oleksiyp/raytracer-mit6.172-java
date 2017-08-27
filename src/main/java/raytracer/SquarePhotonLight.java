@@ -31,17 +31,25 @@ public class SquarePhotonLight extends Square implements Light {
     }
 
 
-
     @Override
     public void init(Raytracer raytracer, boolean copy) {
         rnd = new Random();
 
         if (!copy) {
-            icache = new IrradianceCache(
-                    lightOpts.irradianceCacheTolerance,
-                    lightOpts.irradianceCacheSpacing);
+            if (lightOpts.nGlobalIlluminationN > 0 && lightOpts.nGlobalIlluminationM > 0) {
+                icache = new IrradianceCache(
+                        lightOpts.irradianceCacheTolerance,
+                        lightOpts.irradianceCacheSpacing);
+            }
 
-            tracePhotonMap(lightOpts.numPhotons, lightOpts.numCausticPhotons, raytracer);
+            if (!lightOpts.simpleDiffuse) {
+                tracePhotonMap(lightOpts.numPhotons, raytracer);
+            }
+
+            if (lightOpts.caustics) {
+                traceCausticsPhotonMap(lightOpts.numCausticPhotons, raytracer);
+            }
+
         }
     }
 
@@ -51,7 +59,8 @@ public class SquarePhotonLight extends Square implements Light {
     Colour tpmCol = black();
 
     Ray3D ray = new Ray3D();
-    private void tracePhotonMap(int num, int causticsNum, Raytracer raytracer) {
+
+    private void tracePhotonMap(int num, Raytracer raytracer) {
         PhotonMap map = new PhotonMap(num * 4);
 
         int i = 0;
@@ -143,7 +152,7 @@ public class SquarePhotonLight extends Square implements Light {
                     }
                 }
                 ray.set(ints.point, tpmVec);
-                tpmCol.multiply( 1 / P);
+                tpmCol.multiply(1 / P);
                 ray.setColour(tpmCol);
             }
             i++;
@@ -151,8 +160,11 @@ public class SquarePhotonLight extends Square implements Light {
         map.scalePhotonPower(1.0 / i);
         System.out.println("bmap");
         bmap = map.balance();
+    }
 
-        // Caustics
+    private void traceCausticsPhotonMap(int causticsNum, Raytracer raytracer) {
+        PhotonMap map;
+        int i;// Caustics
         map = new PhotonMap(causticsNum);
 
         int emitted = 0;
@@ -262,7 +274,6 @@ public class SquarePhotonLight extends Square implements Light {
     }
 
 
-
     private void getRandLambertianDir(Vector3D vec) {
         double phi = 2 * PI * rnd.random1();
         double sinPhi = sin(phi);
@@ -323,8 +334,9 @@ public class SquarePhotonLight extends Square implements Light {
     }
 
 
-    StackItem []stack = new StackItem[STACK_DEPTH];
+    StackItem[] stack = new StackItem[STACK_DEPTH];
     int sp = 0;
+
     {
         for (int i = 0; i < stack.length; i++) {
             stack[i] = new StackItem();
@@ -353,17 +365,21 @@ public class SquarePhotonLight extends Square implements Light {
             if (getDirectly) {
                 ray.intersection.normal.normalize();
 
-                if (!bmap.irradianceEstimate(
-                        ray.intersection.point,
-                        ray.intersection.normal,
-                        lightOpts.indirectMaxDistance,
-                        lightOpts.indirectMaxPhotons,
-                        col)) {
-                    col.assign(ray.colour);
-                }
+                if (lightOpts.simpleDiffuse) {
+                    ray.colour.multiply(mat.diffuse);
+                } else {
+                    if (!bmap.irradianceEstimate(
+                            ray.intersection.point,
+                            ray.intersection.normal,
+                            lightOpts.indirectMaxDistance,
+                            lightOpts.indirectMaxPhotons,
+                            col)) {
+                        col.assign(ray.colour);
+                    }
 
-                col.multiply(mat.diffuse);
-                ray.setColour(col);
+                    col.multiply(mat.diffuse);
+                    ray.setColour(col);
+                }
                 return;
             }
 
@@ -520,11 +536,12 @@ public class SquarePhotonLight extends Square implements Light {
                     raytracer.traverseEntireScene(newRay, false);
 
                     if (newRay.intersection.isSet() && newRay.intersection.mat.isLight) {
+                        double NdotL = diVec.dot(ray.intersection.normal);
+
                         diNorm.assign(ray.intersection.normal);
-                        diNorm.multiply(2.0 * ray.intersection.normal.dot(diVec));
+                        diNorm.multiply(2.0 * NdotL);
                         diNorm.subtract(diVec);
 
-                        double NdotL = diVec.dot(ray.intersection.normal);
                         double RdotV = -(diNorm.dot(ray.dir));
                         NdotL = NdotL < 0 ? 0 : NdotL;
                         RdotV = RdotV < 0 ? 0 : RdotV;
@@ -562,7 +579,11 @@ public class SquarePhotonLight extends Square implements Light {
         this.colour = photonLight.colour;
         this.lightOpts = photonLight.lightOpts;
         this.icache = photonLight.icache;
-        this.cmap = photonLight.cmap.copy();
-        this.bmap = photonLight.bmap.copy();
+        if (photonLight.cmap != null) {
+            this.cmap = photonLight.cmap.copy();
+        }
+        if (photonLight.bmap != null) {
+            this.bmap = photonLight.bmap.copy();
+        }
     }
 }

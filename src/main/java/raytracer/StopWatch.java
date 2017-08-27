@@ -73,15 +73,30 @@ public class StopWatch {
         }
     }
 
+    public void tick() {
+        if (lvl == 0) {
+            n++;
+        }
+    }
+
     @Override
     public String toString() {
         return String.format("%s{n=%d, total=%d}", name, n, total);
     }
 
-    public static void report(Formatter fmt, double all) {
-        STOP_WATCH_THREAD_LOCAL.get().forEach((name, sw) -> {
+    public static void report(Formatter fmt, double all, String ...names) {
+        Map<String, StopWatch> hm = STOP_WATCH_THREAD_LOCAL.get();
+        if (names.length == 0) {
+            names = hm.keySet().toArray(new String[0]);
+        }
+        for (String name : names) {
+            StopWatch sw = hm.get(name);
+            if (sw == null) {
+                fmt.format("%s-", name);
+                continue;
+            }
             double tf = sw.total / 1e9;
             fmt.format("%s{%6.3f %5.1f%% %6d} ", name, tf, tf / all * 100.0, sw.n);
-        });
+        }
     }
 }

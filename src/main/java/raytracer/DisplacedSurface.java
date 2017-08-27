@@ -13,6 +13,7 @@ public class DisplacedSurface extends SceneObject {
     public static final Vector3D YP = new Vector3D(0, 1, 0);
     public static final Vector3D XM = new Vector3D(-1, 0, 0);
     public static final Vector3D XP = new Vector3D(1, 0, 0);
+    public static final double EPS = -1e-8;
 
     final int xcoords;
     final int zcoords;
@@ -121,9 +122,9 @@ public class DisplacedSurface extends SceneObject {
         db.cross(x12b);
         ad.cross(x12d);
 
-        if (ba.dot(n1) >= 0 &&
-                db.dot(n1) >= 0 &&
-                ad.dot(n1) >= 0) {
+        if (ba.dot(n1) >= EPS &&
+                db.dot(n1) >= EPS &&
+                ad.dot(n1) >= EPS) {
             i = 1;
         }
 
@@ -143,12 +144,12 @@ public class DisplacedSurface extends SceneObject {
             x2.subtract(c, x12ac);
 
             dc.cross(x12ac);
-            bd.cross(x12b);
-            cb.cross(x12d);
+            bd.cross(x12d);
+            cb.cross(x12b);
 
-            if (dc.dot(n2) >= 0 &&
-                    bd.dot(n2) >= 0 &&
-                    cb.dot(n2) >= 0)
+            if (dc.dot(n2) >= EPS &&
+                    bd.dot(n2) >= EPS &&
+                    cb.dot(n2) >= EPS)
                 i = 2;
 
         }
@@ -346,7 +347,7 @@ public class DisplacedSurface extends SceneObject {
         return new DisplacedSurface(material, points, perlinNoise);
     }
 
-    public DisplacedSurface(Material material, Point3D [][]points, PerlinNoise noise) {
+    private DisplacedSurface(Material material, Point3D [][]points, PerlinNoise noise) {
         perlinNoise = noise;
         this.material = material;
 
@@ -355,13 +356,6 @@ public class DisplacedSurface extends SceneObject {
         maxDisp = 1.0;
 
         this.points = points;
-        for (int i = 0; i < xcoords + 1; i++) {
-            for (int j = 0; j < zcoords + 1; j++) {
-                points[i][j] = origin();
-            }
-        }
-
-        makeSurface(0);
     }
 
 

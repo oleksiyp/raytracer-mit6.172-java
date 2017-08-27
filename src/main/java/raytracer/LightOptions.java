@@ -13,13 +13,14 @@ public class LightOptions {
 
     final int nGlobalIlluminationN;
     final int nGlobalIlluminationM;
+    final boolean simpleDiffuse;
     final boolean caustics;
     final boolean directIllumination;
+
     final int nSoftShadows;
-
     final double irradianceCacheTolerance;
-    final double irradianceCacheSpacing;
 
+    final double irradianceCacheSpacing;
     final int indirectMaxDistance;
     final int indirectMaxPhotons;
 }

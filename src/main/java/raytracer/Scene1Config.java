@@ -30,6 +30,7 @@ public class Scene1Config extends CommonConfig {
                         10000,
                         28,
                         13,
+                        false,
                         true,
                         true,
                         4,

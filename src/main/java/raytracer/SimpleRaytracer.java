@@ -36,7 +36,7 @@ public class SimpleRaytracer implements Scene, Renderer {
 
         initViewMatrix();
 
-        int concurrency = 2;
+        int concurrency = 1;
 
         AtomicInteger j = new AtomicInteger(0);
         List<Thread> threads = new ArrayList<>();
