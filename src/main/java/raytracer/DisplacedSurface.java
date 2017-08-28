@@ -1,8 +1,11 @@
 package raytracer;
 
+import javafx.scene.paint.Stop;
+
 import static raytracer.Point3D.origin;
 import static raytracer.Primitives.EPSILON;
 import static raytracer.Primitives.p;
+import static raytracer.StopWatch.sw;
 import static raytracer.Vector3D.ZERO;
 import static raytracer.Vector3D.zero;
 
@@ -63,6 +66,8 @@ public class DisplacedSurface extends SceneObject {
         makeSurface(0);
     }
 
+    StopWatch fxSw, depSw;
+
     private boolean checkIntersectionGrid(
             int xcoord,
             int zcoord,
@@ -70,14 +75,14 @@ public class DisplacedSurface extends SceneObject {
             Vector3D dir,
             Ray3D ray) {
 
-        // Each square grid is made up of to triages (A and B).  This code checks
+        // Each square grid is made up of to triages (TL and B).  This code checks
         // to see if the ray intersections with either of them.  If the ray
         // intersects with both triangles, we determine which is closer.
 
    /*     a         d
     *       + -----+
     *       |     /|
-    *       | A  / |
+    *       | TL  / |
     *       |   /  |
     *       |  /   |
     *       | /  B |
@@ -90,10 +95,15 @@ public class DisplacedSurface extends SceneObject {
         double t1, t2;
         Point3D a, b, c, d;
 
+        if (fxSw == null) {
+            fxSw = sw("fx");
+        }
+        fxSw.start();
         a = points[xcoord + 1][zcoord];
         b = points[xcoord][zcoord];
         c = points[xcoord][zcoord + 1];
         d = points[xcoord + 1][zcoord + 1];
+
 
         b.subtract(a, ba);
         d.subtract(c, dc);
@@ -107,6 +117,15 @@ public class DisplacedSurface extends SceneObject {
         n1.assign(ba);
         n1.cross(da);
 
+        n2.assign(dc);
+        n2.cross(bc);
+
+        fxSw.end();
+
+        if (depSw == null) {
+            depSw = sw("dep");
+        }
+        depSw.start();
         a.subtract(origin, aco);
         t1 = aco.dot(n1) / (dir.dot(n1));
         off.assign(dir);
@@ -128,8 +147,6 @@ public class DisplacedSurface extends SceneObject {
             i = 1;
         }
 
-        n2.assign(dc);
-        n2.cross(bc);
 
         c.subtract(origin, aco);
         t2 = aco.dot(n2) / dir.dot(n2);
@@ -153,6 +170,8 @@ public class DisplacedSurface extends SceneObject {
                 i = 2;
 
         }
+
+        depSw.end();
 
         if (i == 1 && ray.lessDistant(t1)) {
             n1.normalize();

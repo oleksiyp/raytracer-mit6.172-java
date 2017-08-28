@@ -1,91 +1,58 @@
 package raytracer;
 
 import java.util.Formatter;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
 import static java.lang.ThreadLocal.withInitial;
+import static raytracer.StopWatch.TL.MAP;
 
-public class StopWatch {
-    private static final ThreadLocal<Map<String, StopWatch>> STOP_WATCH_THREAD_LOCAL = withInitial(TreeMap::new);
+public interface StopWatch {
+    DummyStopWatch DUMMY_STOP_WATCH = new DummyStopWatch();
 
-    private long total = 0;
-    private int n;
-    private long t;
-    private String name;
-    private int lvl;
-
-    public StopWatch(String name) {
-        this.name = name;
+    class TL {
+        static ThreadLocal<Map<String, StopWatch>> MAP = withInitial(TreeMap::new);
     }
 
-    public static StopWatch sw(String name) {
-        return STOP_WATCH_THREAD_LOCAL.get().computeIfAbsent(name, StopWatch::new);
+    static void off() {
+        MAP = null;
     }
 
-    public static void swReset() {
-        STOP_WATCH_THREAD_LOCAL.get().forEach((k, v) -> v.reset());
+    static StopWatch sw(String name) {
+        if (MAP == null) {
+            return DUMMY_STOP_WATCH;
+        }
+        return MAP.get().computeIfAbsent(name, StopWatchImpl::new);
     }
 
-    public static long swTotalT() {
+    static void swReset() {
+        if (MAP == null) {
+            return;
+        }
+        MAP.get().forEach((k, v) -> v.reset());
+    }
+
+    static long swTotalT() {
         return sw("general").totalT();
     }
 
-    public static int swTotalN() {
+    static int swTotalN() {
         return sw("general").totalN();
     }
 
-    public static void swStart() {
+    static void swStart() {
         sw("general").start();
     }
 
-    public static void swEnd() {
+    static void swEnd() {
         sw("general").end();
     }
 
-    public void reset() {
-        total = 0;
-        n = 0;
-        lvl = 0;
-    }
-
-    public long totalT() {
-        return total;
-    }
-
-    public int totalN() {
-        return n;
-    }
-
-    public void start() {
-        if (lvl == 0) {
-            t = System.nanoTime();
+    static void report(Formatter fmt, double all, String... names) {
+        if (MAP == null) {
+            return;
         }
-        lvl++;
-    }
-
-    public void end() {
-        lvl--;
-        if (lvl == 0) {
-            total += System.nanoTime() - t;
-            n++;
-        }
-    }
-
-    public void tick() {
-        if (lvl == 0) {
-            n++;
-        }
-    }
-
-    @Override
-    public String toString() {
-        return String.format("%s{n=%d, total=%d}", name, n, total);
-    }
-
-    public static void report(Formatter fmt, double all, String ...names) {
-        Map<String, StopWatch> hm = STOP_WATCH_THREAD_LOCAL.get();
+        Map<String, StopWatch> hm = MAP.get();
         if (names.length == 0) {
             names = hm.keySet().toArray(new String[0]);
         }
@@ -95,8 +62,138 @@ public class StopWatch {
                 fmt.format("%s-", name);
                 continue;
             }
-            double tf = sw.total / 1e9;
-            fmt.format("%s{%6.3f %5.1f%% %6d} ", name, tf, tf / all * 100.0, sw.n);
+            double tf = sw.getTotal() / 1e9;
+            fmt.format("%s{%6.3f %5.1f%% %6d} ", name, tf, tf / all * 100.0, sw.getN());
         }
+    }
+
+    void reset();
+
+    long totalT();
+
+    int totalN();
+
+    void start();
+
+    void end();
+
+    void tick();
+
+    long getTotal();
+
+    int getN();
+
+}
+
+
+class StopWatchImpl implements StopWatch {
+    private final String name;
+    private long total;
+    private int n;
+    private long t;
+    private int lvl;
+
+    public StopWatchImpl(String name) {
+        this.name = name;
+        total = 0;
+    }
+
+    @Override
+    public void reset() {
+        total = 0;
+        n = 0;
+        lvl = 0;
+    }
+
+    @Override
+    public long totalT() {
+        return total;
+    }
+
+    @Override
+    public int totalN() {
+        return n;
+    }
+
+    @Override
+    public void start() {
+        if (lvl == 0) {
+            t = System.nanoTime();
+        }
+        lvl++;
+    }
+
+    @Override
+    public void end() {
+        lvl--;
+        if (lvl == 0) {
+            total += System.nanoTime() - t;
+            n++;
+        }
+    }
+
+    @Override
+    public void tick() {
+        if (lvl == 0) {
+            n++;
+        }
+    }
+
+    @Override
+    public long getTotal() {
+        return total;
+    }
+
+    @Override
+    public int getN() {
+        return n;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s{n=%d, total=%d}", name, n, total);
+    }
+
+}
+
+class DummyStopWatch implements StopWatch {
+    @Override
+    public void reset() {
+
+    }
+
+    @Override
+    public long totalT() {
+        return 0;
+    }
+
+    @Override
+    public int totalN() {
+        return 0;
+    }
+
+    @Override
+    public void start() {
+
+    }
+
+    @Override
+    public void end() {
+
+    }
+
+    @Override
+    public void tick() {
+
+    }
+
+    @Override
+    public long getTotal() {
+        return 0;
+    }
+
+    @Override
+    public int getN() {
+        return 0;
     }
 }

@@ -6,6 +6,7 @@ import static java.lang.Math.abs;
 import static java.lang.Math.min;
 import static java.util.Arrays.sort;
 import static raytracer.Fixed.DENOM;
+import static raytracer.Fixed.mul;
 
 public class BalancedPhotonMap {
     Photon[] photons;
@@ -18,7 +19,7 @@ public class BalancedPhotonMap {
     NearestPhotons np = new NearestPhotons();
     LinearPhotons lp = new LinearPhotons();
 
-    StopWatch lpSw, dstSw, sumSw, srtSw;
+    StopWatch ieSw;
 
     public BalancedPhotonMap(Photon[] photons, int nStoredPhotons) {
         this.photons = Arrays.copyOf(photons, nStoredPhotons);
@@ -42,31 +43,23 @@ public class BalancedPhotonMap {
         }
         int r = 0, g = 0, b = 0;
 
-        Fixed.vector(normal, np.normal);
-        Fixed.point(pos, np.pos);
+        np.normal.v(normal);
+        np.pos.p(pos);
         int dist = (int) (max_dist * DENOM);
         np.init(dist, nphotons);
 
         lastIdx = 0;
 
-        if (lpSw == null) {
-            lpSw = StopWatch.sw("lp");
+        if (ieSw == null) {
+            ieSw = StopWatch.sw("irrEst");
         }
-        lpSw.start();
+        ieSw.start();
         try {
             // Locate the nearest photons
             locatePhotons(1);
-        } finally {
-            lpSw.end();
-        }
 
-        int sz = 0;
+            int sz = 0;
 
-        if (dstSw == null) {
-            dstSw = StopWatch.sw("d");
-        }
-        dstSw.start();
-        try {
             for (int i = 0; i < lastIdx; i++) {
                 long index = (int) idxs[i];
                 // Adjust the distance for photons that are not on the same plane as this
@@ -80,38 +73,19 @@ public class BalancedPhotonMap {
                 idxs[sz++] = index | ((long) dist2 << 32);
             }
 
-        } finally {
-            dstSw.end();
-        }
-
-        if (srtSw == null) {
-            srtSw = StopWatch.sw("srt");
-        }
-        if (sz > nphotons) {
-            srtSw.start();
-            try {
+            if (sz > nphotons) {
                 sort(idxs, 0, sz);
-            } finally {
-                srtSw.end();
+                sz = nphotons;
             }
-        }
 
-        np.found = min(sz, nphotons);
 
-//        System.out.println(sz + " " + nphotons + " " + (nphotons - np.found));
+            // If less than 2 photons return
+            if (sz < 2) {
+                return false;
+            }
 
-        // If less than 2 photons return
-        if (np.found < 2) {
-            return false;
-        }
-
-        if (sumSw == null) {
-            sumSw = StopWatch.sw("sum");
-        }
-        sumSw.start();
-        try {
             // Sum irradiance from all photons
-            for (int i = 0; i < np.found; i++) {
+            for (int i = 0; i < sz; i++) {
                 int idx = (int) idxs[i];
                 if (lp.dirDot(idx, np.normal) < 0) {
                     r += lp.powerR(idx);
@@ -129,7 +103,7 @@ public class BalancedPhotonMap {
             // Take into account (estiate of) density
             col.multiply((DENOM / Math.PI) / (np.maxDist2));
         } finally {
-            sumSw.end();
+            ieSw.end();
         }
         return true;
     }
@@ -142,7 +116,7 @@ public class BalancedPhotonMap {
 
             // If dist1 is positive search right plane
             // Else, dist1 is negative search left first
-            int dist1sq = Fixed.mul(dist1, dist1);
+            int dist1sq = mul(dist1, dist1);
             int off = dist1 >>> 31;
             if (dist1sq < np.maxDist2) {
                 locatePhotons(2 * index + off);

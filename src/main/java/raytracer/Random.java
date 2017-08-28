@@ -12,7 +12,7 @@ public class Random {
     private static final int MERS_B = 0x9D2C5680;
     private static final int MERS_C = 0xEFC60000;
 
-    int mt[];                   // state vector
+    int mt[];                   // state v
     int mti;                             // index into mt
     private java.util.Random r = new java.util.Random();
 

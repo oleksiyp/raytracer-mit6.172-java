@@ -65,7 +65,7 @@ public class SquarePhotonLight extends Square implements Light {
 
         int i = 0;
         while (i < num) {
-            // Calculate the start point and direction of the photon
+            // Calculate the start p and direction of the photon
             tpmPt.p(rnd.random2() * 16, 49.99, rnd.random2() * 16);
             tpmVec.v(0, -1, 0);
             getRandLambertianDir(tpmVec);
@@ -173,7 +173,7 @@ public class SquarePhotonLight extends Square implements Light {
         Point3D p = origin();
 
         while (i < causticsNum) {
-            // Calculate the start point and direction of the photon
+            // Calculate the start p and direction of the photon
 
             if (lightOpts.nSoftShadows > 1) {
                 p.p(rnd.random2() * 18, 49.99, rnd.random2() * 18);

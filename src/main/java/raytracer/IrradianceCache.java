@@ -6,6 +6,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static java.lang.Math.*;
 import static raytracer.Fixed.*;
+import static raytracer.TripleI.zero;
 
 public class IrradianceCache {
     private static final double ICACHE_MAX_SPACING_RATIO = 100.0;
@@ -56,15 +57,17 @@ public class IrradianceCache {
         return min(high, max(val, low));
     }
 
-    Point3Di pt = new Point3Di(0, 0, 0);
-    Vector3Di vec = new Vector3Di(0, 0, 0);
+    TripleI pt = zero();
+    TripleI vec = zero();
+    TripleI col = zero();
+
     public boolean getIrradiance(Point3D pos, Vector3D norm, Colour col) {
         boolean hasIrr = false;
         int weight = 0;
         int r = 0, g = 0, b = 0;
 
-        Fixed.point(pos, pt);
-        Fixed.vector(norm, vec);
+        pt.p(pos);
+        vec.v(norm);
 
         readLock.lock();
         try {
@@ -93,26 +96,25 @@ public class IrradianceCache {
         return true;
     }
 
-    public int weight2(int idx, Point3Di xPos, Vector3Di xNorm) {
-        int vx = vals[idx] - xPos.x;
-        int vy = vals[idx + 1] - xPos.y;
-        int vz = vals[idx + 2] - xPos.z;
+    public int weight2(int idx, TripleI xPos, TripleI xNorm) {
+        int vx = vals[idx] - xPos.a;
+        int vy = vals[idx + 1] - xPos.b;
+        int vz = vals[idx + 2] - xPos.c;
 
         int r0 = vals[6];
         int r = mul(r0, tolerance);
         if (abs(vx) < r && abs(vy) < r && abs(vz) < r) {
-            int a = dot(xNorm.x, vals[idx + 3], xNorm.y, vals[idx + 4], xNorm.z, vals[idx + 5]);
+            int a = dot(xNorm.a, vals[idx + 3], xNorm.b, vals[idx + 4], xNorm.c, vals[idx + 5]);
             int d2 = dot(vx, vx, vy, vy, vz, vz);
-            int s1 = (d2 << Fixed.DENOM_BITS) / mul(r0, r0);
-            int s2 = DENOM - a;
-            int sq12 = (int) sqrt(((d2 * (DENOM - a)) << DENOM_BITS) / (r0 * r0));
-            int dd = s1 + 2 * sq12 + s2;
-            if (dd == 0) {
-                return DENOM * DENOM;
+            int rr = div((int) sqrt(d2 << DENOM_BITS), r0);
+            rr += (int)sqrt((DENOM - a) << DENOM_BITS);
+            if (rr == 0) {
+                return DENOM_SQ;
             }
-            return (DENOM * DENOM) / dd;
+            return DENOM_SQ / rr;
         } else {
             return 0;
         }
     }
+
 }

@@ -25,13 +25,13 @@ public class LinearPhotons {
         }
     }
 
-    int dist(int idx, Vector3Di normal, Point3Di pos) {
-        int distx1 = vals[idx * 9] - pos.x;
-        int disty1 = vals[idx * 9 + 1] - pos.y;
-        int distz1 = vals[idx * 9 + 2] - pos.z;
+    int dist(int idx, TripleI normal, TripleI pos) {
+        int distx1 = vals[idx * 9] - pos.a;
+        int disty1 = vals[idx * 9 + 1] - pos.b;
+        int distz1 = vals[idx * 9 + 2] - pos.c;
 
         int dist2 = dot(distx1, distx1, disty1, disty1, distz1, distz1);
-        int discFix = dot(normal.x, distx1, normal.y, disty1, normal.z, distz1);
+        int discFix = dot(normal.a, distx1, normal.b, disty1, normal.c, distz1);
 
         discFix = FastMath.abs(discFix);
         int i = mul(dist2, discFix);
@@ -39,8 +39,8 @@ public class LinearPhotons {
         return dist2;
     }
 
-    public int dirDot(int idx, Vector3Di normal) {
-        return dot(normal.x, vals[idx * 9 + 3], normal.y, vals[idx * 9 + 4], normal.z, vals[idx * 9 + 5]);
+    public int dirDot(int idx, TripleI normal) {
+        return dot(normal.a, vals[idx * 9 + 3], normal.b, vals[idx * 9 + 4], normal.c, vals[idx * 9 + 5]);
     }
 
     public int powerR(int idx) {
